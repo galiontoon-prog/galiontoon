@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Grabadora</title>
+<!-- Paquete Pages · player + captura + VAD + Whisper opcional. -->
+<style>
+:root{
+  --fondo:#0f0f1a; --panel:#131826; --sec:#1a1a2e; --ctl:#24243a;
+  --borde:#1f2638; --borde2:#2a2a40;
+  --rosa:#ff2e63; --verde:#4ade80; --txt:#fff; --secu:#8a8a9e;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--fondo);color:var(--txt);font:14px/1.45 Inter,system-ui,sans-serif}
+body{padding:18px 12px 40px}
+#app{max-width:420px;margin:0 auto;background:var(--panel);border:1px solid var(--borde);border-radius:22px;padding:14px 16px 18px}
+.top{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:12px;color:var(--secu)}
+.top .grow{flex:1}
+#modo{font-size:11px;line-height:1.35}
+#modo.lim{color:#e7c771}
+#modo.ok{color:var(--verde)}
+.badge{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--verde)}
+.badge.rec{color:var(--rosa)}
+button{height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--borde2);background:var(--ctl);color:var(--txt);font:13px Inter,system-ui;cursor:pointer}
+button[disabled]{opacity:.4;cursor:default}
+select{height:36px;flex:1;min-width:0;padding:0 10px;border-radius:8px;border:1px solid var(--borde2);background:var(--ctl);color:var(--txt);font:13px Inter,system-ui}
+.x{width:28px;height:28px;border-radius:50%;padding:0}
+h1{margin:0 0 12px;font-size:20px;letter-spacing:.04em}
+.card{background:var(--sec);border:1px solid var(--borde);border-radius:14px;padding:14px;margin-bottom:12px}
+.tit{margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#c5cadb;font-weight:700}
+.aviso{display:none;padding:8px 10px;border-radius:8px;background:#3a1524;border:1px solid var(--rosa);color:#ffd0dc;font-size:12px;margin:0 0 12px}
+.aviso.on{display:block}
+.recRow{display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:center}
+.recBtn{width:80px;height:80px;border-radius:50%;border:3px solid var(--rosa);background:transparent;color:#fff;font-size:22px}
+.recBtn.rec{background:var(--rosa)}
+canvas{width:100%;height:56px;background:#0f0f1a;border:1px solid var(--borde);border-radius:6px;display:block}
+.timer{font:16px ui-monospace,Menlo,monospace;text-align:center;margin:8px 0 0}
+.hint{font-size:11px;color:var(--secu);margin:8px 0 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.li{display:grid;grid-template-columns:36px 1fr auto auto auto;gap:8px;align-items:center;background:var(--ctl);border:1px solid var(--borde2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer}
+.li.sel{border-color:var(--verde);box-shadow:0 0 0 1px var(--verde)}
+.li .play{width:36px;height:36px;padding:0;border-radius:50%;font-size:14px}
+.li .meta{min-width:0}
+.li input[type=range]{width:100%;height:6px;accent-color:var(--verde);margin:6px 0 0}
+.li .tplay{font:11px ui-monospace,Menlo,monospace;color:var(--secu)}
+audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
+.vacio{color:var(--secu);font-size:12px;text-align:center}
+.cue{display:grid;grid-template-columns:72px 72px 1fr auto;gap:6px;align-items:center;background:var(--ctl);border:1px solid var(--borde2);border-radius:8px;padding:8px;margin-bottom:6px}
+.cue input[type=number]{height:32px;width:100%;background:#12182a;border:1px solid var(--borde2);color:var(--txt);border-radius:6px;padding:0 6px;font:12px ui-monospace,Menlo,monospace}
+.cue input[type=text]{height:32px;width:100%;background:#12182a;border:1px solid var(--borde2);color:var(--txt);border-radius:6px;padding:0 8px}
+#banco{display:none}
+#banco.on{display:block}
+.test{font-size:12px;padding:6px 0;border-bottom:1px solid var(--borde)}
+.test.ok{color:var(--verde)}
+.test.ko{color:#ff8aa3}
+.progWh{display:none;height:6px;border-radius:99px;background:#24243a;overflow:hidden;margin:8px 0 0}
+.progWh.on{display:block}
+.progWh i{display:block;height:100%;width:0;background:#ff2e63;border-radius:99px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <div id="modo" class="lim"></div>
+    <span class="grow"></span>
+    <span class="badge" id="badge">LISTO</span>
+    <button type="button" id="bBanco" title="Banco">Σ</button>
+    <button type="button" class="x" id="bX" title="Cerrar">×</button>
+  </div>
+  <h1>GRABADORA</h1>
+  <div class="aviso" id="aviso"></div>
+  <section class="card">
+    <p class="tit">Grabador</p>
+    <div class="row" style="margin:0 0 10px">
+      <select id="fuente" title="Fuente de audio">
+        <option value="mic">Micrófono</option>
+        <option value="pestana">Pestaña</option>
+        <option value="pantalla">Pantalla</option>
+        <option value="mezcla">Mic + PC</option>
+      </select>
+    </div>
+    <p class="hint" id="hintFuente" style="margin:0 0 10px">Micrófono de este equipo.</p>
+    <label class="hint" style="display:flex;align-items:center;gap:8px;margin:0 0 10px;cursor:pointer">
+      <input type="checkbox" id="filtrosMic"> Filtros del mic (eco, ruido, ganancia)
+    </label>
+    <div class="recRow">
+      <button type="button" class="recBtn" id="bGrabar">●</button>
+      <canvas id="onda" width="640" height="56"></canvas>
+    </div>
+    <p class="timer" id="timer">00:00.0</p>
+    <p class="hint" id="codec">Codec: —</p>
+    <div class="row">
+      <button type="button" id="bInsertar" disabled>Insertar →</button>
+      <button type="button" id="bDescartar" disabled>Descartar</button>
+    </div>
+  </section>
+  <section class="card">
+    <p class="tit">Mis tomas</p>
+    <div id="lista"></div>
+  </section>
+  <section class="card">
+    <p class="tit">Subtítulos</p>
+    <div class="row">
+      <button type="button" id="bImpSrt">Importar SRT/VTT</button>
+      <button type="button" id="bExpSrt" disabled>Exportar SRT</button>
+      <button type="button" id="bExpVtt" disabled>Exportar VTT</button>
+      <button type="button" id="bTranscribir">Transcribir toma</button>
+    </div>
+    <p class="hint" id="estWhisper">Whisper: buscando motor…</p>
+    <div class="progWh" id="barraWhisper"><i id="barraWhisperI"></i></div>
+    <div class="row">
+      <button type="button" id="bWhisperDown">Descargar modelo (~75 MB)</button>
+      <button type="button" id="bWhisperDel">Borrar modelo</button>
+    </div>
+    <input type="file" id="fSrt" accept=".srt,.vtt,text/vtt" hidden>
+    <div id="listaSubs" style="margin-top:10px"></div>
+  </section>
+  <section class="card" id="banco">
+    <p class="tit">Banco Σ (sin micrófono)</p>
+    <button type="button" id="bRun">Correr pruebas</button>
+    <div id="testOut"></div>
+  </section>
+</div>
+<audio id="player" class="oculto" preload="metadata"></audio>
+<script>
+window.Grabadora = null;
+(function(){
+  'use strict';
+  const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
+  const TIENE_WEBGPU = 'gpu' in navigator;
+  const P = { medios: new Map(), clips: {}, sel: null, selm: new Set(), t: 0 };
+  const PISTAS = [
+    { id:'video-1', tipo:'video', nombre:'Vídeo 1' },
+    { id:'audio-1', tipo:'audio', nombre:'Audio 1' }
+  ];
+  const $ = id => document.getElementById(id);
+  const LISTO = 'listo', GRABANDO = 'grabando', COMPLETADO = 'completado';
+  let estado = LISTO;
+  let rec = null, chunks = [], streamToma = null, micVivo = null;
+  let extra = [], ctxMix = null, fuenteActiva = 'mic';
+  let ctx = null, analyser = null, raf = 0, tick = 0;
+  let t0 = 0, dur = 0, blob = null, mime = '', url = null;
+  let currentId = null, selId = null, player = null, playId = null, seeking = false;
+
+  function aviso(t){
+    const a = $('aviso');
+    a.textContent = t || '';
+    a.classList.toggle('on', !!t);
+  }
+  function fmt(s){
+    s = Math.max(0, +s || 0);
+    const m = Math.floor(s / 60);
+    const r = s - m * 60;
+    return String(m).padStart(2,'0') + ':' + r.toFixed(1).padStart(4,'0');
+  }
+  function nextId(pref, enMedios){
+    let n = 1, id;
+    do { id = pref + String(n).padStart(3,'0'); n++; }
+    while (enMedios ? P.medios.has(id) : P.clips[id]);
+    return id;
+  }
+  function asegurarAudio(){
+    let p = PISTAS.find(x => x.id === 'audio-1');
+    if (!p){ p = { id:'audio-1', tipo:'audio', nombre:'Audio 1' }; PISTAS.push(p); }
+    return p;
+  }
+  function nomNueva(){
+    const n = [...P.medios.values()].filter(m => m.tipo === 'grabacion').length;
+    return 'Toma ' + (n + 1);
+  }
+
+  const Hist = { pila:[], mudo:0 };
+  function instantanea(){
+    return JSON.stringify({ clips:P.clips, pistas:PISTAS, sel:P.sel });
+  }
+  function enLote(motivo, fn){
+    if (!Hist.mudo) Hist.pila.push({ motivo, estado: instantanea() });
+    Hist.mudo++;
+    try{ return fn(); }
+    finally{ Hist.mudo--; }
+  }
+
+  function parseT(x){
+    const m = String(x).trim().replace(',','.').match(/(?:(\d+):)?(\d+):(\d+)[.,](\d+)/);
+    if (!m) return null;
+    const h = +(m[1]||0), mi = +m[2], s = +m[3], frac = m[4];
+    const ms = frac.length === 3 ? +frac : +String(frac).padEnd(3,'0').slice(0,3);
+    return h*3600 + mi*60 + s + ms/1000;
+  }
+  function srtT(s){
+    s = Math.max(0, +s || 0);
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+    const sec = s - h*3600 - m*60;
+    const ent = Math.floor(sec);
+    const ms = Math.round((sec-ent)*1000);
+    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(ent).padStart(2,'0')+','+String(ms).padStart(3,'0');
+  }
+  function leerSRT(txt){
+    txt = String(txt||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
+    const out = [];
+    String(txt).split(/\n\s*\n/).forEach((b, idx) => {
+      const ls = b.split('\n').map(x => x.trim()).filter(Boolean);
+      const flecha = ls.find(x => x.indexOf('-->') >= 0);
+      if (!flecha) return;
+      const p = flecha.split('-->');
+      const a = parseT(p[0]);
+      const b2 = parseT((p[1]||'').trim().split(/\s+/)[0]);
+      if (a == null || b2 == null || b2 <= a) return;
+      const texto = ls.filter(x => !/^\d+$/.test(x) && x.indexOf('-->') < 0).join('\n');
+      out.push({ t0:a, t1:b2, texto, _i:idx });
+    });
+    out.sort((x,y) => x.t0 - y.t0 || x._i - y._i);
+    return out.map(({t0,t1,texto}) => ({ t0, t1, texto }));
+  }
+  function leerVTT(txt){
+    txt = String(txt||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n').replace(/^WEBVTT[^\n]*\n+/i,'');
+    return leerSRT(txt);
+  }
+  function escribirSRT(cues){
+    return (cues||[]).filter(c => String(c.texto||'').trim()).map((c,i) =>
+      (i+1)+'\n'+srtT(c.t0)+' --> '+srtT(c.t1)+'\n'+c.texto+'\n'
+    ).join('\n');
+  }
+  function escribirVTT(cues){
+    const t = s => srtT(s).replace(',','.');
+    return 'WEBVTT\n\n'+(cues||[]).filter(c => String(c.texto||'').trim()).map(c =>
+      t(c.t0)+' --> '+t(c.t1)+'\n'+c.texto+'\n'
+    ).join('\n');
+  }
+
+  function asegurarSub(){
+    if (!P.medios.has('sub-1'))
+      P.medios.set('sub-1', { tipo:'subtitulos', nom:'Subtítulos', pista:'sub-1' });
+    if (!PISTAS.some(p => p.id === 'sub-1'))
+      PISTAS.push({ id:'sub-1', tipo:'subtitulo', nombre:'Subtítulos' });
+    return PISTAS.find(p => p.id === 'sub-1');
+  }
+  function clipACue(c){
+    const pr = c.props || {};
+    return {
+      id: c.id,
+      t0: pr.t0 != null ? pr.t0 : c.inicio,
+      t1: pr.t1 != null ? pr.t1 : (c.inicio + c.duracion),
+      texto: pr.texto || '',
+      estilo: pr.estilo || {},
+      trackId: pr.trackId || c.pista
+    };
+  }
+  function cuesDePista(){
+    const p = PISTAS.find(x => x.id === 'sub-1' && x.tipo === 'subtitulo');
+    if (!p) return [];
+    return Object.values(P.clips).filter(c => c.pista === 'sub-1').map(clipACue).sort((a,b) => a.t0 - b.t0);
+  }
+  function hayPistaSub(){ return PISTAS.some(p => p.id === 'sub-1' && p.tipo === 'subtitulo'); }
+  function meterCues(arr){
+    return enLote('importar subtítulos', () => {
+      asegurarSub();
+      let n = 0;
+      arr.forEach(s => {
+        if (!(s.t1 > s.t0)) return;
+        const id = nextId('cue-', false);
+        P.clips[id] = {
+          id, medio:'sub-1', pista:'sub-1',
+          inicio:s.t0, duracion:s.t1 - s.t0,
+          props:{ texto:s.texto||'', estilo:s.estilo||{}, t0:s.t0, t1:s.t1, trackId:'sub-1' }
+        };
+        n++;
+      });
+      pintarCues();
+      return n;
+    });
+  }
+  function pintarCues(){
+    const box = $('listaSubs');
+    const cues = cuesDePista();
+    const on = hayPistaSub() && cues.length > 0;
+    $('bExpSrt').disabled = !hayPistaSub();
+    $('bExpVtt').disabled = !hayPistaSub();
+    if (!hayPistaSub()){
+      box.innerHTML = '<p class="vacio">Importa un .srt o .vtt</p>';
+      return;
+    }
+    if (!cues.length){
+      box.innerHTML = '<p class="vacio">Pista vacía</p>';
+      return;
+    }
+    box.innerHTML = '';
+    cues.forEach(s => {
+      const d = document.createElement('div');
+      d.className = 'cue';
+      d.innerHTML = '<input type="number" step="0.01" data-a>' +
+        '<input type="number" step="0.01" data-b>' +
+        '<input type="text" data-t>' +
+        '<button type="button" data-x>🗑</button>';
+      d.querySelector('[data-a]').value = (+s.t0).toFixed(2);
+      d.querySelector('[data-b]').value = (+s.t1).toFixed(2);
+      d.querySelector('[data-t]').value = s.texto;
+      const aplicarT = () => {
+        const a = +d.querySelector('[data-a]').value;
+        const b = +d.querySelector('[data-b]').value;
+        if (!isFinite(a) || !isFinite(b) || b <= a) return;
+        enLote('editar rango', () => {
+          const c = P.clips[s.id];
+          c.inicio = a; c.duracion = b - a;
+          c.props.t0 = a; c.props.t1 = b;
+        });
+      };
+      d.querySelector('[data-a]').onchange = aplicarT;
+      d.querySelector('[data-b]').onchange = aplicarT;
+      d.querySelector('[data-t]').onchange = ev => {
+        enLote('editar subtítulo', () => { P.clips[s.id].props.texto = ev.target.value; });
+      };
+      d.querySelector('[data-x]').onclick = () => {
+        enLote('borrar subtítulo', () => { delete P.clips[s.id]; });
+        pintarCues();
+      };
+      box.appendChild(d);
+    });
+  }
+  function stampNom(){
+    const d = new Date();
+    const p = n => String(n).padStart(2,'0');
+    return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes());
+  }
+  function descargar(nom, txt){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([txt], { type:'text/plain' }));
+    a.download = nom;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+  }
+  function exportar(kind){
+    if (!hayPistaSub()){ aviso('No hay pista de subtítulos.'); return ''; }
+    const cues = cuesDePista();
+    const txt = kind === 'vtt' ? escribirVTT(cues) : escribirSRT(cues);
+    if (!String(txt).replace(/^WEBVTT\s*/i,'').trim()){
+      aviso('No hay subtítulos para exportar.');
+      return '';
+    }
+    descargar('subtitulos-'+stampNom()+'.'+(kind==='vtt'?'vtt':'srt'), txt);
+    return txt;
+  }
+  function pintarModo(){
+    const el = $('modo');
+    if (!el) return;
+    if (ENTORNO === 'limitado'){
+      el.className = 'lim';
+      el.textContent = 'file:// · permiso del mic no se guarda entre recargas.';
+    } else {
+      el.textContent = '';
+      el.className = '';
+    }
+  }
+  function pintarBadge(){
+    const b = $('badge');
+    b.className = 'badge' + (estado === GRABANDO ? ' rec' : '');
+    b.textContent = estado === GRABANDO ? 'GRABANDO' : (estado === COMPLETADO ? 'COMPLETADO' : 'LISTO');
+    $('bGrabar').classList.toggle('rec', estado === GRABANDO);
+    $('bGrabar').textContent = estado === GRABANDO ? '■' : '●';
+    $('bInsertar').disabled = !(estado === COMPLETADO || selId);
+    $('bDescartar').disabled = estado !== COMPLETADO;
+  }
+  function pintarOnda(vivo, data){
+    const cv = $('onda');
+    const g = cv.getContext('2d');
+    const w = cv.width, h = cv.height;
+    g.fillStyle = '#0f0f1a'; g.fillRect(0,0,w,h);
+    for (let i = 0; i < 48; i++){
+      let v = 0.1;
+      if (vivo && data) v = Math.max(0.08, Math.abs(data[Math.floor(i * data.length / 48)] / 255 - 0.5) * 2);
+      const bh = Math.max(3, v * (h - 10));
+      g.fillStyle = '#4ade80';
+      g.fillRect(8 + i * ((w - 16) / 48), (h - bh) / 2, Math.max(2, (w - 16) / 48 - 3), bh);
+    }
+  }
+  function bucleOnda(){
+    if (estado !== GRABANDO || !analyser) return;
+    const buf = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(buf);
+    pintarOnda(true, buf);
+    raf = requestAnimationFrame(bucleOnda);
+  }
+  function mmss(s){
+    s = Math.max(0, +s || 0);
+    return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(Math.floor(s%60)).padStart(2,'0');
+  }
+  function filaToma(id){ return document.querySelector('#lista .li[data-id="'+id+'"]'); }
+  function pintarPlayUI(id){
+    document.querySelectorAll('#lista .li').forEach(el => {
+      const on = el.dataset.id === id && player && !player.paused;
+      const b = el.querySelector('[data-p]');
+      if (b) b.textContent = on ? '⏸' : '▶';
+    });
+  }
+  function pintarTiempo(id, cur, tot){
+    const el = filaToma(id); if (!el) return;
+    const sl = el.querySelector('input[type=range]');
+    const t = el.querySelector('.tplay');
+    tot = tot || 0;
+    if (sl && !seeking){
+      sl.max = String(tot || 0);
+      sl.value = String(Math.min(cur || 0, tot || 0));
+    }
+    if (t) t.textContent = mmss(cur) + ' / ' + mmss(tot);
+  }
+  function pintarLista(){
+    const box = $('lista');
+    const tomas = [...P.medios.values()].filter(m => m.tipo === 'grabacion');
+    if (!tomas.length){ box.innerHTML = '<p class="vacio">Aún no hay tomas</p>'; return; }
+    box.innerHTML = '';
+    tomas.forEach(m => {
+      const d = document.createElement('div');
+      d.className = 'li' + (m.id === selId ? ' sel' : '');
+      d.dataset.id = m.id;
+      const on = playId === m.id && player && !player.paused;
+      const cur = (playId === m.id && player) ? player.currentTime : 0;
+      d.innerHTML = '<button type="button" class="play" data-p title="Reproducir"></button>' +
+        '<div class="meta"><strong></strong><input type="range" min="0" step="0.01" data-s>' +
+        '<div class="tplay"></div></div>' +
+        '<button type="button" data-w title="Transcribir">✦</button>' +
+        '<button type="button" data-i title="Insertar">→</button>' +
+        '<button type="button" data-x title="Borrar">🗑</button>';
+      d.querySelector('strong').textContent = m.nom + (m.insertado ? ' · insertada' : '');
+      d.querySelector('[data-p]').textContent = on ? '⏸' : '▶';
+      const sl = d.querySelector('[data-s]');
+      sl.max = String(m.dur || 0);
+      sl.value = String(cur);
+      d.querySelector('.tplay').textContent = mmss(cur) + ' / ' + mmss(m.dur);
+      d.onclick = ev => {
+        if (ev.target.closest('button') || ev.target.closest('input')) return;
+        selId = m.id; blob = m.blob || null; currentId = m.id;
+        pintarLista(); pintarBadge();
+      };
+      d.querySelector('[data-p]').onclick = ev => { ev.stopPropagation(); togglePlay(m); };
+      sl.oninput = ev => {
+        ev.stopPropagation();
+        seeking = true;
+        pintarTiempo(m.id, +sl.value, m.dur);
+      };
+      sl.onchange = ev => {
+        ev.stopPropagation();
+        seeking = false;
+        seekTo(m, +sl.value);
+      };
+      d.querySelector('[data-w]').onclick = ev => { ev.stopPropagation(); transcribirToma(m.id); };
+      d.querySelector('[data-i]').onclick = ev => { ev.stopPropagation(); insertar(m.id); };
+      d.querySelector('[data-x]').onclick = ev => { ev.stopPropagation(); borrar(m.id); };
+      box.appendChild(d);
+    });
+  }
+  function pararPlayer(){
+    if (!player) return;
+    try{ player.pause(); }catch(_){}
+    if (player._u){ try{ URL.revokeObjectURL(player._u); }catch(_){} }
+    player = null; playId = null;
+  }
+  function engancharPlayer(el){
+    el.ontimeupdate = () => {
+      if (!playId) return;
+      const m = P.medios.get(playId);
+      pintarTiempo(playId, el.currentTime, (m && m.dur) || el.duration || 0);
+    };
+    el.onended = () => { pintarPlayUI(null); playId = null; };
+    el.onplay = () => pintarPlayUI(playId);
+    el.onpause = () => pintarPlayUI(playId);
+  }
+  function prepararPlayer(m){
+    if (!m || !m.blob || !m.blob.size){ aviso('Esta toma no tiene audio.'); return null; }
+    if (!player) player = $('player') || new Audio();
+    engancharPlayer(player);
+    if (playId !== m.id){
+      if (player._u){ try{ URL.revokeObjectURL(player._u); }catch(_){} }
+      const u = URL.createObjectURL(m.blob);
+      player._u = u;
+      player.src = u;
+      playId = m.id;
+    }
+    return player;
+  }
+  function togglePlay(m){
+    selId = m.id; currentId = m.id; blob = m.blob || null;
+    const el = prepararPlayer(m); if (!el) return;
+    if (playId === m.id && !el.paused){ el.pause(); pintarLista(); return; }
+    el.play().catch(e => aviso('No se pudo reproducir: ' + (e.message || e)));
+    pintarLista();
+  }
+  function seekTo(m, t){
+    const el = prepararPlayer(m); if (!el) return;
+    const max = m.dur || el.duration || 0;
+    el.currentTime = Math.max(0, Math.min(max, +t || 0));
+    pintarTiempo(m.id, el.currentTime, max);
+  }
+  function mimeAudio(){
+    const c = ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=aac','audio/mp4'];
+    for (const t of c){ if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t; }
+    return '';
+  }
+  function esMac(){
+    return /Mac|iPhone|iPad/.test(navigator.platform || '') || /Mac OS X/.test(navigator.userAgent || '');
+  }
+  function hintFuente(){
+    const v = ($('fuente') || {}).value || 'mic';
+    const h = $('hintFuente');
+    if (!h) return;
+    h.textContent = v === 'pestana'
+      ? 'Comparte una pestaña y marca «Compartir audio de la pestaña».'
+      : v === 'pantalla'
+        ? (esMac()
+          ? 'En Mac la pantalla completa no da audio de escritorio. Usa «Pestaña».'
+          : 'Comparte toda la pantalla y marca «Compartir audio del sistema» (Chrome/Edge en Windows o ChromeOS).')
+        : v === 'mezcla'
+          ? 'Micrófono + audio de pestaña o pantalla. Sin monitor: no hay eco.'
+          : 'Micrófono de este equipo.';
+  }
+  function avisoSinAudio(tipo){
+    if (tipo === 'pantalla' && esMac())
+      aviso('En Mac la pantalla completa no trae audio de escritorio. Elige «Pestaña» y marca «Compartir audio».');
+    else
+      aviso('Esta captura no trae audio. Marca «Compartir audio» o elige una pestaña.');
+  }
+  let micFiltros = null;
+  function constraintsMic(){
+    const on = !!( $('filtrosMic') && $('filtrosMic').checked );
+    return { audio: { echoCancellation: on, noiseSuppression: on, autoGainControl: on } };
+  }
+  async function asegurarMic(){
+    const c = constraintsMic();
+    if (micVivo && micVivo.getAudioTracks().some(t => t.readyState === 'live') && micFiltros === c.audio.echoCancellation)
+      return micVivo;
+    if (micVivo){
+      micVivo.getTracks().forEach(t => { try{ t.stop(); }catch(_){} });
+      micVivo = null;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+      throw new Error('El micrófono no está disponible en esta página.');
+    micVivo = await navigator.mediaDevices.getUserMedia(c);
+    micFiltros = c.audio.echoCancellation;
+    return micVivo;
+  }
+  async function abrirFuente(tipo){
+    extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} });
+    extra = [];
+    if (ctxMix){ try{ ctxMix.close(); }catch(_){} ctxMix = null; }
+    if (tipo === 'pestana' || tipo === 'pantalla'){
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia)
+        throw new Error('Este navegador no puede capturar pestaña o pantalla.');
+      const s = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true });
+      extra.push(s);
+      if (!s.getAudioTracks().length) avisoSinAudio(tipo);
+      return s;
+    }
+    if (tipo === 'mezcla'){
+      let mic;
+      try{ mic = await asegurarMic(); }
+      catch(e){ throw e; }
+      let disp = null;
+      try{
+        if (!navigator.mediaDevices.getDisplayMedia)
+          throw new Error('sin display');
+        disp = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true });
+        extra.push(disp);
+      }catch(_){
+        aviso('Sin pantalla: la mezcla sigue solo con el micrófono.');
+        return mic;
+      }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      ctxMix = new AC();
+      const dest = ctxMix.createMediaStreamDestination();
+      ctxMix.createMediaStreamSource(mic).connect(dest);
+      if (disp.getAudioTracks().length)
+        ctxMix.createMediaStreamSource(disp).connect(dest);
+      else {
+        avisoSinAudio('pantalla');
+      }
+      return dest.stream;
+    }
+    return asegurarMic();
+  }
+  async function iniciar(){
+    if (estado === GRABANDO) return;
+    aviso('');
+    if (!window.MediaRecorder){ aviso('Este navegador no tiene MediaRecorder.'); return; }
+    fuenteActiva = ($('fuente') || {}).value || 'mic';
+    let crudo;
+    try{ crudo = await abrirFuente(fuenteActiva); }
+    catch(e){
+      if (fuenteActiva === 'mic')
+        aviso('Permiso denegado o micrófono no disponible. Candado de Chrome → Permitir. ' + (e.message || e.name || ''));
+      else
+        aviso('No se pudo abrir la captura. Se cancela. ' + (e.message || e.name || ''));
+      return;
+    }
+    if (!crudo.getAudioTracks().some(t => t.readyState === 'live')){
+      if (!($('aviso').classList.contains('on'))) avisoSinAudio(fuenteActiva);
+      extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} });
+      extra = [];
+      return;
+    }
+    streamToma = fuenteActiva === 'mic'
+      ? crudo.clone()
+      : new MediaStream(crudo.getAudioTracks());
+    if (!ctx || ctx.state === 'closed') ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') await ctx.resume();
+    t0 = ctx.currentTime;
+    try{
+      analyser = ctx.createAnalyser(); analyser.fftSize = 512;
+      ctx.createMediaStreamSource(streamToma).connect(analyser);
+    }catch(_){ analyser = null; }
+    mime = mimeAudio();
+    $('codec').textContent = 'Codec: ' + (mime || 'MediaRecorder') + ' · ' + fuenteActiva;
+    chunks = []; blob = null;
+    if (url){ URL.revokeObjectURL(url); url = null; }
+    currentId = null;
+    try{
+      rec = mime ? new MediaRecorder(streamToma, { mimeType: mime }) : new MediaRecorder(streamToma);
+      rec.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+      rec.start(100);
+    }catch(e){ aviso('No arrancó la grabación: ' + (e.message || e)); soltarClon(); return; }
+    estado = GRABANDO; pintarBadge();
+    $('timer').textContent = '00:00.0';
+    clearInterval(tick);
+    tick = setInterval(() => {
+      dur = Math.max(0, ctx.currentTime - t0);
+      $('timer').textContent = fmt(dur);
+    }, 80);
+    cancelAnimationFrame(raf); bucleOnda();
+  }
+  function soltarClon(){
+    extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} });
+    extra = [];
+    if (ctxMix){ try{ ctxMix.close(); }catch(_){} ctxMix = null; }
+    if (!streamToma) return;
+    streamToma.getTracks().forEach(t => { try{ t.stop(); }catch(_){ } });
+    streamToma = null;
+  }
+  function soltarMic(){
+    soltarClon();
+    if (!micVivo) return;
+    micVivo.getTracks().forEach(t => { try{ t.stop(); }catch(_){ } });
+    micVivo = null;
+    micFiltros = null;
+  }
+  function guardarToma(){
+    if (!blob || blob.size < 32) return null;
+    const id = nextId('grab-', true);
+    P.medios.set(id, { id, tipo:'grabacion', blob, dur, nom: nomNueva(), insertado:false, mime, fuente: fuenteActiva });
+    currentId = id; selId = id; pintarLista();
+    return id;
+  }
+  function detener(){
+    if (estado !== GRABANDO) return;
+    clearInterval(tick); cancelAnimationFrame(raf);
+    dur = ctx && ctx.state !== 'closed' ? Math.max(0, ctx.currentTime - t0) : dur;
+    $('timer').textContent = fmt(dur);
+    const fin = () => {
+      blob = new Blob(chunks, { type: (rec && rec.mimeType) || mime || 'audio/webm' });
+      mime = blob.type || mime;
+      if (url) URL.revokeObjectURL(url);
+      url = blob.size ? URL.createObjectURL(blob) : null;
+      if (!chunks.length || blob.size < 32)
+        aviso('El micrófono no entregó audio. Revisa el candado de Chrome.');
+      else guardarToma();
+      soltarClon(); pintarOnda(false);
+      estado = COMPLETADO; pintarBadge();
+    };
+    if (rec && rec.state !== 'inactive'){ rec.onstop = fin; try{ rec.stop(); }catch(_){ fin(); } }
+    else fin();
+  }
+  function insertar(id){
+    const m = P.medios.get(id || currentId || selId);
+    if (!m){ aviso('No hay toma para insertar.'); return null; }
+    asegurarAudio();
+    const cid = nextId('clip-', false);
+    P.clips[cid] = { id: cid, medio: m.id, pista:'audio-1', inicio: P.t, duracion: m.dur, props:{} };
+    m.insertado = true;
+    P.sel = cid;
+    P.selm = new Set([cid]);
+    selId = m.id;
+    pintarLista(); estado = LISTO; pintarBadge();
+    return cid;
+  }
+  function borrar(id){
+    const m = P.medios.get(id);
+    if (!m) return;
+    if (!confirm('¿Borrar «' + m.nom + '»?')) return;
+    if (playId === id) pararPlayer();
+    Object.keys(P.clips).forEach(k => { if (P.clips[k].medio === id) delete P.clips[k]; });
+    P.medios.delete(id);
+    if (selId === id) selId = null;
+    if (currentId === id) currentId = null;
+    pintarLista(); pintarBadge();
+  }
+  function descartar(){
+    clearInterval(tick); cancelAnimationFrame(raf);
+    if (rec && rec.state === 'recording') try{ rec.stop(); }catch(_){}
+    chunks = []; blob = null;
+    if (url){ URL.revokeObjectURL(url); url = null; }
+    soltarClon();
+    if (currentId){
+      const m = P.medios.get(currentId);
+      if (m && !m.insertado) P.medios.delete(currentId);
+    }
+    currentId = null;
+    $('timer').textContent = '00:00.0';
+    pintarOnda(false); pintarLista();
+    estado = LISTO; pintarBadge();
+  }
+  async function vadDeBlob(blob){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ac = new AC();
+    const buf = await ac.decodeAudioData(await blob.arrayBuffer());
+    try{ ac.close(); }catch(_){}
+    const data = buf.getChannelData(0), rate = buf.sampleRate;
+    const win = Math.max(1, Math.floor(rate * 0.02));
+    const rms = [];
+    for (let i = 0; i + win <= data.length; i += win){
+      let a = 0;
+      for (let k = 0; k < win; k++) a += data[i+k] * data[i+k];
+      rms.push({ t: i / rate, e: Math.sqrt(a / win) });
+    }
+    if (rms.length < 6) return [];
+    const ord = rms.map(x => x.e).slice().sort((a,b) => a-b);
+    const p20 = ord[Math.floor(ord.length*0.2)] || 0.01;
+    const p80 = ord[Math.floor(ord.length*0.8)] || 0.08;
+    if (p80 - p20 < 0.004 && p80 > 0.02)
+      return [{ t0:0, t1: data.length / rate, texto:'[Voz local]' }];
+    const suelo = Math.max(0.008, p20);
+    const alto = Math.max(suelo * 2.2, suelo + (p80 - suelo) * 0.45);
+    const bajo = suelo * 1.35;
+    const raw = [];
+    let voz = false, ini = 0, last = 0;
+    rms.forEach(p => {
+      if (!voz && p.e >= alto){ voz = true; ini = Math.max(0, p.t - 0.04); last = p.t; }
+      else if (voz && p.e >= bajo) last = p.t;
+      else if (voz && p.t - last >= 0.14){
+        if (last - ini >= 0.22) raw.push({ t0: ini, t1: last + 0.04, texto:'[Voz local]' });
+        voz = false;
+      }
+    });
+    if (voz && last - ini >= 0.22) raw.push({ t0: ini, t1: last + 0.04, texto:'[Voz local]' });
+    return raw;
+  }
+  function pintarWhisper(){
+    const el = $('estWhisper'); if (!el) return;
+    const eng = window.WhisperEngine;
+    if (!eng){ el.textContent = 'Whisper no disponible. Se usará detección de voz.'; return; }
+    const st = eng.estado();
+    el.textContent = st === 'listo'
+      ? 'Whisper: listo · ' + (eng.webgpu && eng.webgpu() ? 'WebGPU' : 'WASM') + ' · 100% local'
+      : st === 'descargando' ? 'Whisper: descargando modelo…'
+      : st === 'error' ? 'Whisper: error · ' + ((eng.error && eng.error()) || '')
+      : 'Whisper: motor detectado. Descarga el modelo una vez (~75 MB).';
+  }
+  function loadWhisper(){
+    if (window.WhisperEngine){ pintarWhisper(); return; }
+    if (window._weTried){ pintarWhisper(); return; }
+    window._weTried = true;
+    const s = document.createElement('script');
+    s.src = './WhisperEngine.js';
+    s.onload = pintarWhisper;
+    s.onerror = pintarWhisper;
+    document.head.appendChild(s);
+  }
+  async function transcribirToma(id){
+    const m = P.medios.get(id || selId || currentId);
+    if (!m || !m.blob){ aviso('Elige una toma con audio.'); return 0; }
+    const eng = window.WhisperEngine;
+    try{
+      if (eng){
+        aviso('Transcribiendo con Whisper…');
+        if (eng.estado() !== 'listo'){
+          setProg(1);
+          await eng.cargar({ onProgreso: p => {
+            setProg(p.progress || 0);
+            aviso('Modelo… ' + Math.round(p.progress || 0) + '%');
+          }});
+          setProg(100);
+        }
+        const r = await eng.transcribir(m.blob, { idioma: 'es' });
+        const segs = (r && r.segmentos) || [];
+        if (!segs.length){ aviso('Whisper no detectó voz.'); return 0; }
+        const n = meterCues(segs);
+        aviso(n + ' cues Whisper.');
+        return n;
+      }
+      aviso('Sin modelo. VAD (tiempos, sin texto)…');
+      const segs = await vadDeBlob(m.blob);
+      if (!segs.length){ aviso('VAD: no hay voz.'); return 0; }
+      const n = meterCues(segs);
+      aviso(n + ' cues VAD [Voz local]. Descarga Whisper para texto.');
+      return n;
+    }catch(e){
+      aviso('Transcribir falló: ' + (e.message || e));
+      return 0;
+    }
+  }
+  function ok(nom, pass, por){
+    const d = document.createElement('div');
+    d.className = 'test ' + (pass ? 'ok' : 'ko');
+    d.textContent = (pass ? '✓ ' : '✗ ') + nom + ' — ' + por;
+    $('testOut').appendChild(d);
+    return pass;
+  }
+  function correrBanco(){
+    $('testOut').innerHTML = '';
+    const snapMed = new Map(P.medios);
+    const snapClips = Object.assign({}, P.clips);
+    const snapSel = P.sel;
+    const snapSelId = selId;
+    const id = nextId('grab-', true);
+    P.medios.set(id, { id, tipo:'grabacion', blob:new Blob([new Uint8Array(8)]), dur:1, nom:'Toma banco', insertado:false });
+    pintarLista();
+    ok('Listar toma fake', !!document.querySelector('#lista .li'), 'aparece en Mis tomas');
+    selId = id; pintarLista();
+    ok('Seleccionar', document.querySelector('#lista .li.sel') !== null, 'borde verde');
+    const cid = insertar(id);
+    ok('Insertar → P.clips', !!(cid && P.clips[cid] && P.clips[cid].medio === id), String(cid));
+    ok('P.sel es string', typeof P.sel === 'string' && P.sel === cid, JSON.stringify(P.sel));
+    P.medios.delete(id); delete P.clips[cid]; selId = null; pintarLista();
+    ok('Borrar toma', !P.medios.has(id) && ![...P.medios.values()].some(x => x.nom === 'Toma banco'), 'desaparece');
+    P.medios = snapMed; P.clips = snapClips; P.sel = snapSel; selId = snapSelId; pintarLista();
+    ok('Sin basura tras el banco', !P.medios.has(id), 'estado restaurado');
+
+    const teniaSub = hayPistaSub();
+    if (teniaSub){
+      /* Σ10 mide el estado sin pista: se quita solo para el aserto y se restaura. */
+    }
+    const pistasSnap = PISTAS.slice();
+    const clipsSnap2 = Object.assign({}, P.clips);
+    Object.keys(P.clips).forEach(k => { if (P.clips[k].pista === 'sub-1') delete P.clips[k]; });
+    const ix = PISTAS.findIndex(p => p.id === 'sub-1');
+    if (ix >= 0) PISTAS.splice(ix, 1);
+    P.medios.delete('sub-1');
+    pintarCues();
+    ok('Σ10 export sin sub-1', $('bExpSrt').disabled && $('bExpVtt').disabled, 'botones apagados');
+
+    const srt = '1\n00:00:00,000 --> 00:00:01,000\nUno\n\n2\n00:00:01,000 --> 00:00:02,000\nDos\n\n3\n00:00:02,000 --> 00:00:03,500\nTres\n';
+    const n7 = meterCues(leerSRT(srt));
+    ok('Σ7 import SRT 3 cues', n7 === 3 && hayPistaSub() && cuesDePista().length === 3, n7+' cues, pista '+hayPistaSub());
+
+    const prim = cuesDePista()[0];
+    P.clips[prim.id].props.texto = 'Uno editado';
+    pintarCues();
+    ok('Σ8 editar texto', P.clips[prim.id].props.texto === 'Uno editado', P.clips[prim.id].props.texto);
+
+    const back = escribirSRT(cuesDePista());
+    const otra = leerSRT(back);
+    ok('Σ9 export redondo', otra.length === 3 && otra[0].texto === 'Uno editado' && Math.abs(otra[2].t1-3.5)<0.01, otra.map(x=>x.texto).join(','));
+
+    let threw = false, parcial;
+    try{ parcial = leerSRT('1\n00:00:00,000 00:00:01,000\nMalo\n\n2\n00:00:01,000 --> 00:00:02,000\nBueno\n'); }
+    catch(_){ threw = true; }
+    ok('Σ11 malformado sin throw', !threw && parcial.length === 1 && parcial[0].texto === 'Bueno', threw ? 'throw' : String(parcial.length));
+
+    const vtt = 'WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nA\n\n00:00:01.000 --> 00:00:02.000\nB\n\n00:00:02.000 --> 00:00:03.000\nC\n';
+    const nv = leerVTT(vtt);
+    ok('Σ12 VTT 3 cues', nv.length === 3 && nv[1].texto === 'B' && Math.abs(nv[1].t0-1)<1e-9, nv.length+' '+ (nv[1]&&nv[1].texto));
+
+    const sel = $('fuente');
+    const vals = sel ? [...sel.options].map(o => o.value).join(',') : '';
+    ok('Σ13 selector 4 fuentes', !!sel && vals === 'mic,pestana,pantalla,mezcla', vals);
+    ok('Σ14 fuente por defecto mic', !!sel && sel.value === 'mic', sel && sel.value);
+    ok('Σ15 abrirFuente existe', typeof abrirFuente === 'function', typeof abrirFuente);
+    const cMic = constraintsMic();
+    ok('Σ16 mic sin AEC por defecto', cMic.audio.echoCancellation === false && cMic.audio.noiseSuppression === false && cMic.audio.autoGainControl === false, JSON.stringify(cMic.audio));
+    const fake2 = nextId('grab-', true);
+    P.medios.set(fake2, { id:fake2, tipo:'grabacion', blob:new Blob([new Uint8Array(8)]), dur:30, nom:'Toma player', insertado:false });
+    pintarLista();
+    const fila = document.querySelector('#lista .li[data-id="'+fake2+'"]');
+    ok('Σ17 player fila', !!(fila && fila.querySelector('[data-p]') && fila.querySelector('input[type=range]') && fila.querySelector('.tplay')), fila ? 'ok' : 'sin fila');
+    ok('Σ18 vadDeBlob', typeof vadDeBlob === 'function', typeof vadDeBlob);
+    ok('Σ19 loadWhisper', typeof loadWhisper === 'function', typeof loadWhisper);
+    P.medios.delete(fake2); pintarLista();
+
+    PISTAS.length = 0; pistasSnap.forEach(p => PISTAS.push(p));
+    Object.keys(P.clips).forEach(k => delete P.clips[k]);
+    Object.assign(P.clips, clipsSnap2);
+    if (!teniaSub){ P.medios.delete('sub-1'); }
+    pintarCues();
+  }
+
+  $('fuente').onchange = hintFuente;
+  hintFuente();
+  $('filtrosMic').onchange = () => { micFiltros = null; };
+  $('bGrabar').onclick = () => {
+    try{ if (estado === GRABANDO) detener(); else iniciar(); }
+    catch(e){ aviso('Grabar falló: ' + (e.message || e)); }
+  };
+  $('bInsertar').onclick = () => insertar();
+  $('bDescartar').onclick = () => descartar();
+  $('bX').onclick = () => { if (estado === GRABANDO) detener(); soltarMic(); };
+  $('bBanco').onclick = () => $('banco').classList.toggle('on');
+  $('bRun').onclick = correrBanco;
+  $('bImpSrt').onclick = () => $('fSrt').click();
+  $('fSrt').onchange = ev => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      const t = String(r.result || '');
+      const cues = /\.vtt$/i.test(f.name) || /^WEBVTT/i.test(t) ? leerVTT(t) : leerSRT(t);
+      const n = meterCues(cues);
+      aviso(n ? n + ' subtítulos importados.' : 'No se leyeron cues.');
+    };
+    r.readAsText(f);
+    ev.target.value = '';
+  };
+  $('bExpSrt').onclick = () => exportar('srt');
+  $('bExpVtt').onclick = () => exportar('vtt');
+  $('bTranscribir').onclick = () => transcribirToma();
+  function setProg(pct){
+    const bar = $('barraWhisper'); const i = $('barraWhisperI');
+    if (bar) bar.classList.toggle('on', pct != null);
+    if (i && pct != null) i.style.width = Math.max(0, Math.min(100, Math.round(pct))) + '%';
+  }
+  $('bWhisperDown').onclick = async () => {
+    if (!window.WhisperEngine){ aviso('Whisper no disponible.'); return; }
+    try{
+      setProg(1);
+      await window.WhisperEngine.cargar({ onProgreso: p => {
+        setProg(p.progress || 0);
+        aviso('Descargando modelo… ' + Math.round(p.progress || 0) + '%');
+      }});
+      setProg(100); pintarWhisper(); aviso('Modelo listo.');
+    }catch(e){ setProg(null); aviso('Descarga falló: ' + (e.message || e)); pintarWhisper(); }
+  };
+  $('bWhisperDel').onclick = async () => {
+    if (!window.WhisperEngine) return;
+    if (!confirm('¿Borrar modelo local?')) return;
+    await window.WhisperEngine.borrar();
+    pintarWhisper(); aviso('Modelo borrado.');
+  };
+  addEventListener('whisper-estado', pintarWhisper);
+  window.addEventListener('pagehide', () => { pararPlayer(); soltarMic(); });
+  pintarModo(); pintarBadge(); pintarOnda(false); pintarLista(); pintarCues();
+  loadWhisper();
+  window.Grabadora = { iniciar, detener, insertar, estado: () => estado, transcribirToma };
+  window.Subtitulos = { leerSRT, leerVTT, escribirSRT, escribirVTT };
+  window.P = P; window.PISTAS = PISTAS; window.ENTORNO = ENTORNO;
+})();
+</script>
+</body>
+</html>
