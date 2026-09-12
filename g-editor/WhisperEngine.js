@@ -33,6 +33,10 @@
   var pendientes = Object.create(null);
   var onProgreso = null;
   var webgpu = typeof navigator !== 'undefined' && !!navigator.gpu;
+  var deviceUsado = webgpu ? 'webgpu' : 'wasm';
+  var dtypeUsado = webgpu ? 'fp16' : 'q8';
+  var idiomaSesion = '';
+  var cargaEnCurso = null;
 
   function postEstado() {
     try {
@@ -57,15 +61,22 @@
     return map[c] || c;
   }
 
+  async function dirMotor(crear) {
+    if (!navigator.storage || !navigator.storage.getDirectory) return null;
+    var root = await navigator.storage.getDirectory();
+    return root.getDirectoryHandle('whisper-engine', { create: !!crear });
+  }
+
   async function marcarOPFS(listo) {
     try {
-      if (!navigator.storage || !navigator.storage.getDirectory) return;
-      var root = await navigator.storage.getDirectory();
       if (!listo) {
+        if (!navigator.storage || !navigator.storage.getDirectory) return;
+        var root = await navigator.storage.getDirectory();
         try { await root.removeEntry('whisper-engine', { recursive: true }); } catch (_) {}
         return;
       }
-      var d = await root.getDirectoryHandle('whisper-engine', { create: true });
+      var d = await dirMotor(true);
+      if (!d) return;
       var f = await d.getFileHandle('ready.txt', { create: true });
       var w = await f.createWritable();
       await w.write(MODELO + '\n' + Date.now());
@@ -75,12 +86,82 @@
 
   async function hayMarcaOPFS() {
     try {
-      if (!navigator.storage || !navigator.storage.getDirectory) return false;
-      var root = await navigator.storage.getDirectory();
-      var d = await root.getDirectoryHandle('whisper-engine', { create: false });
+      var d = await dirMotor(false);
+      if (!d) return false;
       await d.getFileHandle('ready.txt', { create: false });
       return true;
     } catch (_) { return false; }
+  }
+
+  async function leerLangs() {
+    try {
+      var d = await dirMotor(false);
+      if (!d) return {};
+      var f = await d.getFileHandle('langs.json', { create: false });
+      var file = await f.getFile();
+      var j = JSON.parse(await file.text());
+      return j && typeof j === 'object' ? j : {};
+    } catch (_) { return {}; }
+  }
+
+  async function escribirLangs(map) {
+    var d = await dirMotor(true);
+    if (!d) return;
+    var f = await d.getFileHandle('langs.json', { create: true });
+    var w = await f.createWritable();
+    await w.write(JSON.stringify(map || {}));
+    await w.close();
+  }
+
+  async function marcarIdioma(code, extra) {
+    var k = String(code || 'auto').toLowerCase();
+    var map = await leerLangs();
+    map[k] = Object.assign({ ts: Date.now(), bytes: 75 * 1024 * 1024, modelo: MODELO }, extra || {});
+    await escribirLangs(map);
+    await marcarOPFS(true);
+    return map[k];
+  }
+
+  async function idiomaListo(code) {
+    var k = String(code || 'auto').toLowerCase();
+    var map = await leerLangs();
+    if (map[k]) return true;
+    if (k === 'auto') {
+      var keys = Object.keys(map);
+      if (keys.length) return true;
+      return (await hayMarcaOPFS()) || (await hayCacheHF());
+    }
+    return false;
+  }
+
+  async function borrarIdioma(code) {
+    var k = String(code || '').toLowerCase();
+    var map = await leerLangs();
+    delete map[k];
+    await escribirLangs(map);
+    if (!Object.keys(map).length) await borrar();
+    return { ok: true, quedan: Object.keys(map) };
+  }
+
+  async function bytesCache() {
+    var total = 0;
+    try {
+      var ks = await caches.keys();
+      for (var i = 0; i < ks.length; i++) {
+        if (!/huggingface|transformers|whisper|gs-whisper/i.test(ks[i])) continue;
+        var c = await caches.open(ks[i]);
+        var reqs = await c.keys();
+        for (var j = 0; j < reqs.length; j++) {
+          try {
+            var r = await c.match(reqs[j]);
+            if (!r) continue;
+            var b = await r.blob();
+            total += b.size || 0;
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    return total;
   }
 
   async function hayCacheHF() {
@@ -155,25 +236,60 @@
       'env.remotePathTemplate = "{model}/resolve/{revision}/";',
       'try { if (env.backends && env.backends.onnx && env.backends.onnx.wasm) env.backends.onnx.wasm.wasmPaths = "' + TF_DIST + '"; } catch (e) {}',
       'let pipe = null;',
+      'let info = { device: "wasm", dtype: "q8" };',
+      'async function inferir(audio, language) {',
+      '  const opts = { task: "transcribe", return_timestamps: true, chunk_length_s: 20, stride_length_s: 2 };',
+      '  if (language) opts.language = language;',
+      '  const sr = 16000, win = 30 * sr, hop = 28 * sr;',
+      '  if (!audio || audio.length <= win * 1.15) return pipe(audio, opts);',
+      '  const chunks = [];',
+      '  for (let start = 0; start < audio.length; start += hop) {',
+      '    const end = Math.min(audio.length, start + win);',
+      '    const piece = audio.slice(start, end);',
+      '    const r = await pipe(piece, opts);',
+      '    const off = start / sr;',
+      '    chunks.push({ r, off });',
+      '    if (end >= audio.length) break;',
+      '  }',
+      '  const segs = [];',
+      '  chunks.forEach(({ r, off }) => {',
+      '    const list = (r && r.chunks) || [];',
+      '    list.forEach(ch => {',
+      '      const ts = ch.timestamp || [0, 0];',
+      '      segs.push({ timestamp: [(+ts[0] || 0) + off, (ts[1] == null ? (+ts[0] || 0) + 1 : +ts[1]) + off], text: ch.text || "" });',
+      '    });',
+      '    if (!list.length && r && r.text) segs.push({ timestamp: [off, off + 1], text: r.text });',
+      '  });',
+      '  return { chunks: segs, text: segs.map(s => s.text).join(" ") };',
+      '}',
       'self.onmessage = async (ev) => {',
       '  const { id, tipo, payload } = ev.data || {};',
       '  try {',
       '    if (tipo === "cargar") {',
-      '      const device = payload.webgpu ? "webgpu" : "wasm";',
-      '      pipe = await pipeline("automatic-speech-recognition", payload.model, {',
-      '        device,',
-      '        dtype: payload.webgpu ? "fp16" : "q8",',
-      '        progress_callback: (p) => self.postMessage({ id, tipo: "progreso", p })',
-      '      });',
-      '      self.postMessage({ id, tipo: "ok" });',
+      '      if (pipe) { self.postMessage({ id, tipo: "ok", info }); return; }',
+      '      let device = payload.webgpu ? "webgpu" : "wasm";',
+      '      let dtype = payload.webgpu ? "fp16" : "q8";',
+      '      try {',
+      '        pipe = await pipeline("automatic-speech-recognition", payload.model, {',
+      '          device, dtype,',
+      '          progress_callback: (p) => self.postMessage({ id, tipo: "progreso", p })',
+      '        });',
+      '      } catch (e) {',
+      '        if (device !== "webgpu") throw e;',
+      '        device = "wasm"; dtype = "q8";',
+      '        pipe = await pipeline("automatic-speech-recognition", payload.model, {',
+      '          device, dtype,',
+      '          progress_callback: (p) => self.postMessage({ id, tipo: "progreso", p })',
+      '        });',
+      '      }',
+      '      info = { device, dtype };',
+      '      self.postMessage({ id, tipo: "ok", info });',
       '    } else if (tipo === "transcribir") {',
-      '      const r = await pipe(payload.audio, {',
-      '        language: payload.language,',
-      '        task: "transcribe",',
-      '        return_timestamps: true,',
-      '        chunk_length_s: 30',
-      '      });',
+      '      const r = await inferir(payload.audio, payload.language);',
       '      self.postMessage({ id, tipo: "ok", result: r });',
+      '    } else if (tipo === "liberar") {',
+      '      pipe = null;',
+      '      self.postMessage({ id, tipo: "ok" });',
       '    } else {',
       '      self.postMessage({ id, tipo: "error", msg: "tipo desconocido" });',
       '    }',
@@ -215,7 +331,7 @@
       var pend = pendientes[d.id];
       if (!pend) return;
       delete pendientes[d.id];
-      if (d.tipo === 'ok') pend.ok(d.result);
+      if (d.tipo === 'ok') pend.ok(d.result != null ? d.result : d.info || true);
       else pend.mal(new Error(d.msg || 'error Whisper'));
     };
     worker.onerror = function (e) {
@@ -240,6 +356,8 @@
       });
     } catch (e) {
       if (device === 'webgpu') {
+        deviceUsado = 'wasm';
+        dtypeUsado = 'q8';
         pipe = await tfMod.pipeline('automatic-speech-recognition', MODELO, {
           device: 'wasm',
           dtype: 'q8',
@@ -258,54 +376,81 @@
   async function cargar(opciones) {
     opciones = opciones || {};
     onProgreso = opciones.onProgreso || opciones.onProgress || null;
-    if (estado === 'listo' && (pipe || worker)) return { ok: true };
-    setEstado('descargando');
-    try {
-      var usarWorker = opciones.worker !== false;
-      if (usarWorker) {
-        try {
-          arrancarWorker();
-          await llamarWorker('cargar', { model: MODELO, webgpu: webgpu });
-          setEstado('listo');
-          await marcarOPFS(true);
-          return { ok: true, via: 'worker', webgpu: webgpu };
-        } catch (e) {
-          try { worker.terminate(); } catch (_) {}
-          worker = null;
-        }
-      }
-      await cargarEnHilo(opciones);
-      setEstado('listo');
-      await marcarOPFS(true);
-      return { ok: true, via: 'main', webgpu: webgpu };
-    } catch (e) {
-      setEstado('error', e.message || e);
-      throw e;
+    if (estado === 'listo' && (pipe || worker)) {
+      return { ok: true, cache: true, device: deviceUsado, dtype: dtypeUsado };
     }
+    if (cargaEnCurso) return cargaEnCurso;
+    setEstado('descargando');
+    cargaEnCurso = (async function () {
+      try {
+        var usarWorker = opciones.worker !== false;
+        if (usarWorker) {
+          try {
+            arrancarWorker();
+            var info = await llamarWorker('cargar', { model: MODELO, webgpu: webgpu });
+            if (info && info.device) {
+              deviceUsado = info.device;
+              dtypeUsado = info.dtype || dtypeUsado;
+            }
+            setEstado('listo');
+            await marcarOPFS(true);
+            return { ok: true, via: 'worker', device: deviceUsado, dtype: dtypeUsado };
+          } catch (e) {
+            try { worker.terminate(); } catch (_) {}
+            worker = null;
+          }
+        }
+        await cargarEnHilo(opciones);
+        deviceUsado = webgpu && pipe ? deviceUsado : 'wasm';
+        dtypeUsado = deviceUsado === 'webgpu' ? 'fp16' : 'q8';
+        setEstado('listo');
+        await marcarOPFS(true);
+        return { ok: true, via: 'main', device: deviceUsado, dtype: dtypeUsado };
+      } catch (e) {
+        setEstado('error', e.message || e);
+        throw e;
+      } finally {
+        cargaEnCurso = null;
+      }
+    })();
+    return cargaEnCurso;
   }
 
   async function transcribir(blob, opciones) {
     opciones = opciones || {};
+    var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     if (estado !== 'listo') {
       await cargar({ onProgreso: onProgreso });
     }
     if (!(blob instanceof Blob)) throw new Error('transcribir espera un Blob de audio');
     var audio = await pcm16k(blob);
-    var lang = idiomaWhisper(opciones.idioma || opciones.language || 'es');
+    var rawLang = String(opciones.idioma || opciones.language || '').toLowerCase();
+    var lang = (!rawLang || rawLang === 'auto') ? null : idiomaWhisper(rawLang);
+    if (idiomaSesion && lang && idiomaSesion !== lang) idiomaSesion = lang;
+    else idiomaSesion = lang || idiomaSesion || '';
     var r;
     if (worker) {
-      r = await llamarWorker('transcribir', { audio: audio, language: lang }, [audio.buffer]);
+      r = await llamarWorker('transcribir', { audio: audio, language: lang });
     } else if (pipe) {
-      r = await pipe(audio, {
-        language: lang,
-        task: 'transcribe',
-        return_timestamps: true,
-        chunk_length_s: 30
-      });
+      var popts = { task: 'transcribe', return_timestamps: true, chunk_length_s: 20, stride_length_s: 2 };
+      if (lang) popts.language = lang;
+      r = await pipe(audio, popts);
     } else {
       throw new Error('Whisper no está listo');
     }
-    return { segmentos: segsDeResultado(r), bruto: r };
+    var ms = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
+    return { segmentos: segsDeResultado(r), bruto: r, ms: ms, device: deviceUsado, dtype: dtypeUsado };
+  }
+
+  async function liberar() {
+    try { if (worker) await llamarWorker('liberar', {}); } catch (_) {}
+    try { if (worker) worker.terminate(); } catch (_) {}
+    worker = null;
+    pipe = null;
+    tfMod = null;
+    idiomaSesion = '';
+    if (estado === 'listo') setEstado('no-descargado');
+    return { ok: true };
   }
 
   async function borrar() {
@@ -337,9 +482,21 @@
     cargar: cargar,
     transcribir: transcribir,
     borrar: borrar,
+    marcarIdioma: marcarIdioma,
+    idiomaListo: idiomaListo,
+    borrarIdioma: borrarIdioma,
+    listarIdiomas: leerLangs,
+    bytesCache: bytesCache,
     estado: function () { return estado; },
     error: function () { return ultimoError; },
+    liberar: liberar,
     webgpu: function () { return webgpu; },
+    device: function () { return deviceUsado; },
+    dtype: function () { return dtypeUsado; },
+    etiquetaModelo: function () {
+      var q = dtypeUsado === 'q8' ? 'int8' : (dtypeUsado || 'fp32');
+      return 'tiny-' + q;
+    },
     modelo: function () { return MODELO; },
     hayCache: async function () { return (await hayMarcaOPFS()) || (await hayCacheHF()); }
   };

@@ -70,7 +70,17 @@ canvas{width:100%;height:56px;background:transparent;display:block}
 .timer{font:32px/1 ui-monospace,Menlo,Consolas,monospace;text-align:center;margin:14px 0 6px;font-weight:600;letter-spacing:.04em}
 .codec{font:11px ui-monospace,Menlo,Consolas,monospace;color:var(--secu);text-align:center;margin:0 0 12px}
 .hint{font-size:11px;color:var(--secu);margin:8px 0 0;text-align:center}
-#estWhisper{display:none}
+#estWhisper,#estMotor,#lapsoWh{display:block;text-align:left}
+.langWh{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.langWh select{flex:1}
+.icoLang{flex:0 0 28px;text-align:center;font-size:16px;line-height:38px;user-select:none}
+.icoLang.wait{animation:langPulse .8s ease-in-out infinite}
+@keyframes langPulse{50%{opacity:.3}}
+.listaIdiomas{display:flex;flex-direction:column;gap:6px;margin:0 0 12px;max-height:220px;overflow:auto}
+.filaIdioma{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 10px;background:var(--ctl);border:1px solid var(--borde);border-radius:8px;font-size:12px}
+.filaIdioma b{font-weight:700}
+.filaIdioma .sz{color:var(--secu);font-variant-numeric:tabular-nums}
+.filaIdioma button{height:28px;width:auto;min-width:64px;padding:0 10px;font-size:11px}
 .col{display:flex;flex-direction:column;gap:8px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .btn{height:38px;padding:0 12px;border-radius:10px;border:1px solid var(--borde2);background:var(--ctl);color:#c8c8d4;font-size:13px;font-weight:600;width:100%;transition:background .16s,border-color .16s,color .16s,filter .16s}
@@ -104,6 +114,7 @@ html.modo-simple .li [data-w]{display:none}
 #downPct{font:22px/1 ui-monospace,Menlo,monospace;font-weight:700}
 #downMb{margin:10px 0 0;font-size:12px;color:var(--secu)}
 #liveBox{display:none;position:fixed;right:16px;bottom:16px;width:340px;height:280px;min-width:280px;min-height:170px;max-width:92vw;max-height:86vh;background:#1a1a24;border:1px solid var(--borde);border-radius:12px;z-index:40;box-shadow:0 12px 32px #000a;opacity:0;flex-direction:column;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none}
+#liveBox.menu-on{overflow:visible}
 #liveBox.on{display:flex;opacity:1}
 #liveBox.rec{border-color:#00ff88cc}
 #liveBox.arrastre,#liveBox.resize{box-shadow:0 8px 20px #000a;cursor:grabbing}
@@ -112,8 +123,28 @@ html.modo-simple .li [data-w]{display:none}
 #liveBox.arrastre .cab{cursor:grabbing}
 #liveBox .cab select{flex:0 0 48px;height:24px;padding:0 4px;font-size:11px;font-weight:700;border-radius:8px;border:1px solid var(--borde2);background:var(--ctl);cursor:pointer}
 #liveBox .cab button{height:24px;width:24px;padding:0;border:0;background:transparent;color:var(--secu);font-size:16px;cursor:pointer}
+#liveBox .cab #bLiveGear{width:26px;height:26px;font-size:15px;border-radius:7px;color:#9a9aaa}
+#liveBox .cab #bLiveGear:hover,#liveBox.menu-on #bLiveGear{color:#fff;background:#2c2c3a}
+#liveMenu{display:none;position:absolute;top:calc(100% + 6px);right:8px;width:236px;background:#16161e;border:1px solid #2a2a36;border-radius:10px;padding:4px;z-index:60;box-shadow:0 18px 40px #000000cc,0 0 0 1px #ffffff08;animation:liveMenuIn .12s ease-out}
+#liveBox.menu-on #liveMenu{display:block}
+@keyframes liveMenuIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+#liveMenu .cap{padding:8px 10px 4px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6a6a7a}
+#liveMenu .item{display:flex;align-items:center;gap:10px;width:100%;height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:#ececf4;font-size:13px;font-weight:500;text-align:left;cursor:pointer;letter-spacing:.01em}
+#liveMenu .item:hover{background:#22222e}
+#liveMenu .item:active{background:#1e1e28}
+#liveMenu .item .ico{width:18px;flex:0 0 18px;text-align:center;font-size:13px;color:#9a9aaa}
+#liveMenu .item:hover .ico{color:#c8c8d4}
+#liveMenu .sep{height:1px;background:#22222e;margin:4px 8px}
+#liveMenu .bloque{padding:2px 8px 8px}
+#liveMenu .bloque > span{display:block;margin:6px 2px 4px;font-size:11px;color:#6a6a7a}
+#liveMenu .bloque label.chkL{display:flex;align-items:center;gap:8px;margin:0;height:30px;padding:0 4px;font-size:13px;color:#d8d8e2;cursor:pointer;border-radius:6px}
+#liveMenu .bloque label.chkL:hover{background:#1e1e28}
+#liveMenu .bloque input[type=checkbox]{appearance:none;width:14px;height:14px;margin:0;border:1px solid #3a3a4a;border-radius:4px;background:#111118;flex:0 0 14px}
+#liveMenu .bloque input[type=checkbox]:checked{background:var(--verde);border-color:var(--verde);box-shadow:inset 0 0 0 2px #111118}
+#liveMenu .bloque select{width:100%;height:30px;margin:0 0 6px;padding:0 8px;font-size:12px;font-weight:600;color:#e8e8f0;background:#111118;border:1px solid #2a2a36;border-radius:7px}
 #liveBox .priv{display:none;margin:0;padding:6px 12px 8px;font-size:12px;color:var(--rojo);line-height:1.35;flex:0 0 auto}
 #liveBox.on .priv{display:block}
+#liveBox.sin-priv .priv{display:none !important}
 #liveBox .cuerpo{flex:1;min-height:72px;overflow:auto;padding:4px 12px 10px}
 #liveBox .fra{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;margin:0 0 12px}
 #liveBox .ts{grid-column:1;grid-row:1;font:11px ui-monospace,Menlo,monospace;color:var(--secu);padding-top:1px}
@@ -137,26 +168,46 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 .vacio{color:var(--secu);font-size:13px;text-align:center;padding:18px 8px}
 #lista .vacio{padding:28px 8px}
 #lista:has(.vacio){min-height:72px;display:flex;align-items:center;justify-content:center}
-#cardCues{padding:0;overflow:hidden}
-#cardCues .tit{margin:0;padding:10px 12px;border-bottom:1px solid var(--borde)}
-#cajaCues{outline:none}
-.docCues{max-height:240px;overflow:auto;background:var(--sec)}
+#cardCues{padding:0;overflow:hidden;background:#1a1a24;border:1px solid var(--borde);margin-top:10px}
+#cardCues .tit{margin:0;padding:10px 12px;border-bottom:1px solid #22222e;background:#1a1a24}
+#cajaCues{outline:none;max-height:260px;overflow-x:hidden;overflow-y:scroll;background:#1a1a24;scrollbar-width:thin;scrollbar-color:#3a3a4a #1a1a24}
+#cajaCues::-webkit-scrollbar{width:8px}
+#cajaCues::-webkit-scrollbar-track{background:#1a1a24}
+#cajaCues::-webkit-scrollbar-thumb{background:#3a3a4a;border-radius:8px}
+.docCues{background:#1a1a24;min-height:72px}
 #listaSubs .vacio{padding:28px 12px;font-size:12px}
-.cue{display:grid;grid-template-columns:54px 10px 54px 1fr 22px;gap:4px;align-items:center;padding:7px 10px;border:0;border-bottom:1px solid #22222e;border-radius:0;margin:0;background:transparent}
+.cue{display:grid;grid-template-columns:auto 14px auto 48px minmax(0,1fr) 22px;gap:4px;align-items:center;padding:8px 10px;border:0;border-bottom:1px solid #22222e;border-radius:0;margin:0;background:transparent}
 .cue:last-child{border-bottom:0}
 .cue:hover{background:#1e1e28}
-.cue.sel{background:#1e1e28;box-shadow:inset 2px 0 0 var(--verde)}
-.cue .flecha{color:#555566;font-size:11px;text-align:center;user-select:none}
-.cue input[data-a],.cue input[data-b]{height:22px;width:100%;background:transparent;border:1px solid transparent;color:var(--secu);border-radius:4px;padding:0 2px;font:11px ui-monospace,Menlo,monospace}
-.cue input[data-t]{height:26px;width:100%;background:transparent;border:1px solid transparent;color:var(--txt);border-radius:4px;padding:0 4px;font-size:13px}
-.cue input:focus{background:#12121a;border-color:var(--borde2);color:var(--txt)}
-.cue input.mal{border-color:var(--rojo);color:var(--rojo)}
+.cue.sel{background:#1e1e28}
+.cue .flecha{color:#555555;font-size:11px;line-height:1;text-align:center;user-select:none;pointer-events:none}
+.cue input[data-a],.cue input[data-b]{height:22px;width:4.6em;max-width:4.6em;background:transparent;border:0;color:#bbbbbb;border-radius:0;padding:0;font:11px/1.2 ui-monospace,Menlo,Consolas,monospace}
+.pillH{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:18px;padding:0 6px;border-radius:99px;border:0;font-size:10px;font-weight:800;cursor:text;user-select:none}
+.pillH.h1{background:#3b82f633;color:#93c5fd}
+.pillH.h2{background:#00ff8833;color:#00FF88}
+.pillH.h3{background:#eab30833;color:#facc15}
+.pillH.h4{background:#ff3b6b33;color:#FF3B6B}
+.pillH.h5{background:#a78bfa33;color:#c4b5fd}
+.cue input[data-h]{height:18px;width:100%;background:transparent;border:0;color:inherit;border-radius:99px;padding:0 4px;font-size:10px;font-weight:800;text-align:center}
+.cue input[data-t]{height:auto;min-height:22px;width:100%;background:transparent;border:0;border-radius:0;padding:0 4px;font-size:13px;line-height:1.35;color:#ffffff}
+.cue input:focus{background:transparent;border:0;outline:none;box-shadow:inset 0 -1px #555555;color:inherit}
+.cue input[data-t]:focus{box-shadow:none;background:#1e1e28}
+.cue input.mal{box-shadow:inset 0 0 0 1px #FF4D4D;color:#FF4D4D}
 .cue [data-x]{opacity:0;width:22px;height:22px;padding:0;border:0;background:transparent;color:var(--secu)}
 .cue:hover [data-x]{opacity:1}
 .buscaRow{display:grid;grid-template-columns:88px 1fr;gap:8px;align-items:center;margin-bottom:8px}
 .buscaRow span{font-size:13px;color:var(--secu)}
 #banco{display:none}
 #banco.on{display:block}
+.wrapTabla{overflow:auto;max-height:280px;margin-top:10px;background:#1a1a24;border:1px solid #22222e;border-radius:8px}
+.tablaEstilos{width:100%;border-collapse:collapse;font-size:11px}
+.tablaEstilos th,.tablaEstilos td{padding:6px 8px;text-align:left;vertical-align:middle;border:0;border-bottom:1px solid #22222e}
+.tablaEstilos thead th{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#6a6a7a;font-weight:700;background:#1a1a24;position:sticky;top:0}
+.tablaEstilos tbody td:nth-child(2){font:11px ui-monospace,Menlo,Consolas,monospace;color:#bbbbbb;white-space:nowrap}
+.tablaEstilos tbody td:nth-child(3){color:#888899}
+.tablaEstilos tr:last-child td{border-bottom:0}
+.tablaEstilos tr:hover td{background:#1e1e28}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;box-shadow:inset 0 0 0 1px #ffffff22}
 .test{font-size:12px;padding:6px 0;border-bottom:1px solid var(--borde)}
 .test.ok{color:var(--verde)}.test.ko{color:#ff8aa3}
 .progWh{display:none;height:8px;border-radius:99px;background:#2a2a36;overflow:hidden}
@@ -194,6 +245,8 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     </select>
     <p class="hint solo-adv" id="hintFuente" style="text-align:left;margin:0 0 8px">Micrófono de este equipo.</p>
     <label class="chk solo-adv"><input type="checkbox" id="filtrosMic"> Filtros del mic</label>
+    <select id="selCodec" class="btn field solo-adv" title="Codec de grabación" style="margin-bottom:8px"></select>
+    <p class="hint solo-adv" id="hintCodec" style="text-align:left;margin:0 0 8px"></p>
     <label class="chk solo-adv"><input type="checkbox" id="chkCuenta"> Cuenta atrás 3 s</label>
     <label class="chk solo-adv"><input type="checkbox" id="chkSpeech"> Reconocimiento en vivo</label>
     <p class="hint solo-adv" id="avisoSpeech" style="display:none;color:#FF4D4D;text-align:left">El audio sale del equipo (servicio del navegador).</p>
@@ -263,10 +316,35 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       <button type="button" class="btn" id="bTraducirUndo">Restaurar original</button>
     </div>
     <p class="hint solo-adv" id="estTrad" style="text-align:left">Traducción on-device. Sin servidores.</p>
+    <p class="tit solo-adv" style="margin-top:12px">Idioma de transcripción</p>
+    <div class="langWh solo-adv">
+      <select id="selIdiomaWh" class="btn field" title="Idioma de Whisper">
+        <option value="auto">Auto-detectar</option>
+        <option value="es">Español</option>
+        <option value="en">Inglés</option>
+        <option value="fr">Francés</option>
+        <option value="pt">Portugués</option>
+        <option value="it">Italiano</option>
+        <option value="de">Alemán</option>
+      </select>
+      <span id="icoIdiomaWh" class="icoLang" title="Estado del modelo">☁️</span>
+    </div>
     <p class="hint solo-adv" id="estWhisper" style="text-align:left"></p>
-    <div class="col solo-adv" style="margin-top:8px">
-      <button type="button" class="btn" id="bWhisperDown">Descargar modelo (~75 MB)</button>
-      <button type="button" class="btn" id="bWhisperDel">Borrar modelo</button>
+    <p class="hint solo-adv" id="estMotor" style="text-align:left"></p>
+    <label class="chk solo-adv"><input type="checkbox" id="chkTiempos"> Mostrar tiempos</label>
+    <p class="hint solo-adv" id="lapsoWh" style="display:none;text-align:left"></p>
+    <button type="button" class="btn solo-adv" id="bGestIdiomas">Gestionar idiomas</button>
+    <div id="cajaHab" class="solo-adv" hidden>
+    <label class="chk" id="labHablantes" title="Requiere descarga de modelos"><input type="checkbox" id="chkHablantes"> Etiquetar hablantes (Profesional)</label>
+    <p class="hint" style="text-align:left;margin:0 0 8px">Modelo pyannote local (~6 MB). Nada sale del equipo.</p>
+    <div class="grid2 solo-adv" style="margin-bottom:8px">
+      <select id="selMaxHab" class="btn field" title="Máximo de hablantes">
+        <option value="2">Hasta 2</option>
+        <option value="3" selected>Hasta 3</option>
+        <option value="4">Hasta 4</option>
+      </select>
+      <button type="button" class="btn" id="bHablantes">Detectar hablantes</button>
+    </div>
     </div>
     <input type="file" id="fSrt" accept=".srt,.vtt,text/vtt" hidden>
     <div class="solo-adv" id="cajaCuesTools" style="margin-top:8px">
@@ -307,22 +385,80 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     <p class="tit">Banco Σ</p>
     <button type="button" class="btn" id="bRun">Correr pruebas</button>
     <div id="testOut"></div>
+    <p class="tit" style="margin-top:14px">Tabla de estilos CSS</p>
+    <div class="wrapTabla">
+      <table class="tablaEstilos">
+        <thead>
+          <tr><th>Token / selector</th><th>Valor</th><th>Uso</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="sw" style="background:#0a0a12"></span>--fondo</td><td>#0a0a12</td><td>Página</td></tr>
+          <tr><td><span class="sw" style="background:#111118"></span>--panel</td><td>#111118</td><td>Recuadro app 360px</td></tr>
+          <tr><td><span class="sw" style="background:#1a1a24"></span>--sec</td><td>#1a1a24</td><td>Cards y lista de cues</td></tr>
+          <tr><td><span class="sw" style="background:#22222e"></span>--ctl</td><td>#22222e</td><td>Controles / cab live</td></tr>
+          <tr><td><span class="sw" style="background:#252532"></span>--borde</td><td>#252532</td><td>Borde de cards</td></tr>
+          <tr><td><span class="sw" style="background:#22222e"></span>separador cue</td><td>1px #22222e</td><td>Línea entre cues</td></tr>
+          <tr><td><span class="sw" style="background:#1e1e28"></span>hover cue</td><td>#1e1e28</td><td>Fila al pasar el ratón</td></tr>
+          <tr><td><span class="sw" style="background:#FF3B6B"></span>--rosa</td><td>#FF3B6B</td><td>Acento / rec / guardar</td></tr>
+          <tr><td><span class="sw" style="background:#00FF88"></span>--verde</td><td>#00FF88</td><td>Listo / hablante</td></tr>
+          <tr><td><span class="sw" style="background:#FF4D4D"></span>--rojo</td><td>#FF4D4D</td><td>Error / vivo</td></tr>
+          <tr><td><span class="sw" style="background:#ffffff"></span>texto cue</td><td>13px #ffffff</td><td>Texto editable</td></tr>
+          <tr><td><span class="sw" style="background:#bbbbbb"></span>tiempo cue</td><td>11px mono #bbb</td><td>t0 / t1 editables</td></tr>
+          <tr><td><span class="sw" style="background:#555555"></span>flecha</td><td>#555</td><td>Separador t0 → t1</td></tr>
+          <tr><td>#cajaCues</td><td>max-height 260px</td><td>Scroll siempre visible</td></tr>
+          <tr><td>.cue</td><td>padding 8px 0</td><td>Documento continuo</td></tr>
+          <tr><td>#app</td><td>360px / radius 16px</td><td>Panel</td></tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <div id="liveBox">
     <div class="cab" id="liveCab">
       <span>🎙 Subtítulos en vivo</span>
       <span class="grow"></span>
-      <select id="liveLang" title="Traducir a">
-        <option value="es">ES</option>
-        <option value="en" selected>EN</option>
-        <option value="fr">FR</option>
-        <option value="pt">PT</option>
-        <option value="it">IT</option>
-        <option value="de">DE</option>
-      </select>
+      <button type="button" id="bLiveGear" title="Ajustes">⚙</button>
       <button type="button" id="bLiveMin" title="Minimizar">−</button>
       <button type="button" id="bLiveX" title="Cerrar">×</button>
+    </div>
+    <div id="liveMenu">
+      <div class="cap">Posición</div>
+      <button type="button" class="item" data-pos="br"><span class="ico">↘</span> Abajo a la derecha</button>
+      <button type="button" class="item" data-pos="bl"><span class="ico">↙</span> Abajo a la izquierda</button>
+      <button type="button" class="item" data-pos="tr"><span class="ico">↗</span> Arriba a la derecha</button>
+      <button type="button" class="item" data-pos="tl"><span class="ico">↖</span> Arriba a la izquierda</button>
+      <div class="sep"></div>
+      <div class="cap">Idioma</div>
+      <div class="bloque">
+        <span>Traducir a</span>
+        <select id="liveLang" title="Traducir a">
+          <option value="es">Español</option>
+          <option value="en" selected>Inglés</option>
+          <option value="fr">Francés</option>
+          <option value="pt">Portugués</option>
+          <option value="it">Italiano</option>
+          <option value="de">Alemán</option>
+        </select>
+        <span>Transcripción</span>
+        <select id="liveIdiomaWh" title="Idioma Whisper">
+          <option value="auto">Auto-detectar</option>
+          <option value="es">Español</option>
+          <option value="en">Inglés</option>
+          <option value="fr">Francés</option>
+          <option value="pt">Portugués</option>
+          <option value="it">Italiano</option>
+          <option value="de">Alemán</option>
+        </select>
+      </div>
+      <div class="sep"></div>
+      <div class="cap">Preferencias</div>
+      <div class="bloque">
+        <label class="chkL"><input type="checkbox" id="chkLiveTiempos" checked> Mostrar tiempos</label>
+        <label class="chkL"><input type="checkbox" id="chkLivePriv" checked> Aviso de privacidad</label>
+      </div>
+      <div class="sep"></div>
+      <button type="button" class="item" id="bLiveGestId"><span class="ico">☁</span> Gestionar idiomas</button>
+      <button type="button" class="item" id="bLiveInfo"><span class="ico">?</span> Más información</button>
     </div>
     <p class="priv" id="livePriv">El audio del reconocimiento sale del equipo.<br>La traducción es local.</p>
     <div class="cuerpo" id="liveCuerpo"></div>
@@ -365,12 +501,25 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     <button type="button" class="link" id="bDownX">Cerrar</button>
   </div>
 </div>
+<div class="dlg" id="dlgIdiomas">
+  <div class="caja">
+    <h3>Gestionar idiomas</h3>
+    <p id="sumIdiomas">Whisper-tiny es multilingüe (~75 MB). Cada idioma se activa sobre esa copia local.</p>
+    <div id="listaIdiomas" class="listaIdiomas"></div>
+    <div class="col">
+      <button type="button" class="btn" id="bWhisperDown">Descargar modelo base</button>
+      <button type="button" class="btn" id="bWhisperDel">Borrar modelo y idiomas</button>
+      <button type="button" class="link" id="bIdiomasX">Cerrar</button>
+    </div>
+  </div>
+</div>
 <audio id="player" class="oculto" preload="metadata"></audio>
 <script>
 window.Grabadora = null;
 (function(){
   'use strict';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
+  const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
   const P = { medios: new Map(), clips: {}, sel: null, selm: new Set(), t: 0 };
   const PISTAS = [
@@ -427,16 +576,19 @@ window.Grabadora = null;
     }
     const hms = raw.match(/^(\d+):(\d+):(\d+(?:\.\d+)?)$/);
     if (hms){
-      const n = +hms[1]*3600 + +hms[2]*60 + +hms[3];
+      const hh = +hms[1], mm = +hms[2], ss = +hms[3];
+      if (mm >= 60 || ss >= 60) return null;
+      const n = hh*3600 + mm*60 + ss;
       return isFinite(n) && n >= 0 ? n : null;
     }
     const ms = raw.match(/^(\d+):(\d+(?:\.\d+)?)$/);
     if (ms){
-      const n = +ms[1]*60 + +ms[2];
+      const mm = +ms[1], ss = +ms[2];
+      if (ss >= 60) return null;
+      const n = mm*60 + ss;
       return isFinite(n) && n >= 0 ? n : null;
     }
-    const t = parseT(raw);
-    return t == null || t < 0 ? null : t;
+    return null;
   }
   function nextId(pref, enMedios){
     let n = 1, id;
@@ -516,13 +668,13 @@ window.Grabadora = null;
   }
   function escribirSRT(cues){
     return (cues||[]).filter(c => String(c.texto||'').trim()).map((c,i) =>
-      (i+1)+'\n'+srtT(c.t0)+' --> '+srtT(c.t1)+'\n'+c.texto+'\n'
+      (i+1)+'\n'+srtT(c.t0)+' --> '+srtT(c.t1)+'\n'+textoConHablante(c)+'\n'
     ).join('\n');
   }
   function escribirVTT(cues){
     const t = s => srtT(s).replace(',','.');
     return 'WEBVTT\n\n'+(cues||[]).filter(c => String(c.texto||'').trim()).map(c =>
-      t(c.t0)+' --> '+t(c.t1)+'\n'+c.texto+'\n'
+      t(c.t0)+' --> '+t(c.t1)+'\n'+(c.hablanteNom || nomDeHablante(c.hablante) ? ('<v '+(c.hablanteNom || nomDeHablante(c.hablante))+'>') : '')+String(c.texto||'')+'\n'
     ).join('\n');
   }
   function asegurarAudio(){
@@ -545,8 +697,35 @@ window.Grabadora = null;
       t1: pr.t1 != null ? pr.t1 : (c.inicio + c.duracion),
       texto: pr.texto || '',
       estilo: pr.estilo || {},
-      trackId: pr.trackId || c.pista
+      trackId: pr.trackId || c.pista,
+      hablante: pr.hablante || '',
+      hablanteNom: pr.hablanteNom || ''
     };
+  }
+  function nomDeHablante(id, fallback){
+    const map = (leerUI().hablantes || {});
+    if (id && map[id]) return map[id];
+    return fallback || (id ? ('H'+id) : '');
+  }
+  function guardarNomHablante(id, nom){
+    if (!id) return;
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.hablantes = Object.assign({}, p.hablantes || {});
+    p.hablantes[id] = String(nom || '').trim() || ('H'+id);
+    salvarUI(p);
+  }
+  function textoConHablante(c){
+    const nom = String(c.hablanteNom || nomDeHablante(c.hablante) || '').trim();
+    const t = String(c.texto || '');
+    if (!nom) return t;
+    if (t.toLowerCase().indexOf(nom.toLowerCase()+':') === 0) return t;
+    return nom+': '+t;
+  }
+  function partirHablante(texto){
+    const raw = String(texto || '');
+    const m = raw.match(/^([^:]{1,32}):\s+([\s\S]+)$/);
+    if (!m) return { texto: raw, hablante:'', hablanteNom:'' };
+    return { texto: m[2], hablante:'', hablanteNom: m[1].trim() };
   }
   function hayPistaSub(){ return PISTAS.some(p => p.id === 'sub-1' && p.tipo === 'subtitulo'); }
   function cuesDePista(){
@@ -561,10 +740,13 @@ window.Grabadora = null;
       (arr||[]).forEach(s => {
         if (!(s.t1 > s.t0)) return;
         const id = nextId('cue-', false);
+        const ph = partirHablante(s.texto||'');
+        const hab = s.hablante || '';
+        const habNom = s.hablanteNom || ph.hablanteNom || '';
         P.clips[id] = {
           id, medio:'sub-1', pista:'sub-1',
           inicio:s.t0, duracion:s.t1 - s.t0,
-          props:{ texto:s.texto||'', estilo:s.estilo||{}, t0:s.t0, t1:s.t1, trackId:'sub-1' }
+          props:{ texto: habNom ? ph.texto : (s.texto||''), estilo:s.estilo||{}, t0:s.t0, t1:s.t1, trackId:'sub-1', hablante:hab, hablanteNom:habNom }
         };
         n++;
       });
@@ -588,12 +770,19 @@ window.Grabadora = null;
       const d = document.createElement('div');
       d.className = 'cue' + (s.id === selCue || selCues.has(s.id) ? ' sel' : '');
       d.dataset.id = s.id;
-      d.innerHTML = '<input type="text" data-a spellcheck="false"><span class="flecha">→</span><input type="text" data-b spellcheck="false"><input type="text" data-t><button type="button" data-x title="Borrar">🗑</button>';
+      d.innerHTML = '<input type="text" data-a spellcheck="false"><span class="flecha">→</span><input type="text" data-b spellcheck="false"><button type="button" class="pillH" data-h title="Renombrar hablante"></button><input type="text" data-t><button type="button" data-x title="Borrar">🗑</button>';
       const ia = d.querySelector('[data-a]');
       const ib = d.querySelector('[data-b]');
+      const ih = d.querySelector('[data-h]');
       const it = d.querySelector('[data-t]');
       ia.value = fmtUserT(s.t0); ib.value = fmtUserT(s.t1); it.value = s.texto;
-      ia.dataset.ok = ia.value; ib.dataset.ok = ib.value; it.dataset.ok = s.texto;
+      const habNom = s.hablanteNom || nomDeHablante(s.hablante);
+      const habN = String(s.hablante || '1').replace(/\D/g,'') || '1';
+      ih.textContent = habNom ? ('H'+habN) : '';
+      if (habNom && habNom !== ('H'+habN)) ih.textContent = habNom;
+      ih.className = 'pillH h'+Math.max(1, Math.min(5, +habN || 1));
+      if (!s.hablante && !habNom) ih.style.visibility = 'hidden';
+      ia.dataset.ok = ia.value; ib.dataset.ok = ib.value; it.dataset.ok = s.texto; ih.dataset.ok = habNom || ('H'+habN);
       const guardarT = () => {
         const a = parseUserT(ia.value), b = parseUserT(ib.value);
         if (a == null || b == null || a < 0 || b <= a){
@@ -603,7 +792,7 @@ window.Grabadora = null;
         }
         ia.classList.remove('mal'); ib.classList.remove('mal');
         const c = P.clips[s.id];
-        if (!c) return false;
+        if (!c || !c.props) return false;
         if (Math.abs((+c.props.t0||0)-a) < 0.001 && Math.abs((+c.props.t1||0)-b) < 0.001){
           ia.value = fmtUserT(a); ib.value = fmtUserT(b);
           ia.dataset.ok = ia.value; ib.dataset.ok = ib.value;
@@ -622,6 +811,23 @@ window.Grabadora = null;
         enLote('editar subtítulo', () => { P.clips[s.id].props.texto = v; });
         it.dataset.ok = v;
       };
+      const guardarHab = (v) => {
+        v = String(v == null ? (ih.value || ih.textContent || '') : v).trim();
+        if (v === ih.dataset.ok) return;
+        const c = P.clips[s.id]; if (!c) return;
+        const hid = c.props.hablante || v || '1';
+        enLote('renombrar hablante', () => {
+          c.props.hablante = hid;
+          c.props.hablanteNom = v;
+          Object.keys(P.clips).forEach(k => {
+            const o = P.clips[k];
+            if (o && o.pista === 'sub-1' && String(o.props.hablante) === String(hid)) o.props.hablanteNom = v;
+          });
+        });
+        if (hid) guardarNomHablante(hid, v);
+        ih.dataset.ok = v;
+        pintarCues();
+      };
       const teclaCampo = (ev, guardar, cancelar) => {
         ev.stopPropagation();
         if (ev.key === 'Enter'){ ev.preventDefault(); guardar(); ev.target.blur(); }
@@ -632,6 +838,17 @@ window.Grabadora = null;
       ib.onkeydown = ev => teclaCampo(ev, guardarT, () => { ib.value = ib.dataset.ok; ib.classList.remove('mal'); });
       it.onblur = guardarTxt;
       it.onkeydown = ev => teclaCampo(ev, guardarTxt, () => { it.value = it.dataset.ok; });
+      ih.onclick = ev => {
+        ev.stopPropagation();
+        const inp = document.createElement('input');
+        inp.type = 'text'; inp.setAttribute('data-h',''); inp.value = ih.dataset.ok || '';
+        inp.className = 'pillH '+ih.className.replace('pillH','').trim();
+        ih.replaceWith(inp); inp.focus(); inp.select();
+        const fin = ok => { if (ok) guardarHab(inp.value); else pintarCues(); };
+        inp.onblur = () => fin(true);
+        inp.onkeydown = ev2 => teclaCampo(ev2, () => fin(true), () => fin(false));
+      };
+      if ($('chkHablantes') && !$('chkHablantes').checked) ih.style.display = 'none';
       d.querySelector('[data-x]').onclick = ev => { ev.stopPropagation(); borrarCue(s.id); };
       d.onclick = ev => {
         if (ev.target.closest('input') || ev.target.closest('button')) return;
@@ -674,7 +891,7 @@ window.Grabadora = null;
       c.props.texto = izq; c.props.t1 = mid; c.duracion = mid - t0;
       const nid = nextId('cue-', false);
       P.clips[nid] = { id:nid, medio:'sub-1', pista:'sub-1', inicio:mid, duracion:t1-mid,
-        props:{ texto:der, estilo:c.props.estilo||{}, t0:mid, t1:t1, trackId:'sub-1' } };
+        props:{ texto:der, estilo:c.props.estilo||{}, t0:mid, t1:t1, trackId:'sub-1', hablante:c.props.hablante||'', hablanteNom:c.props.hablanteNom||'' } };
       selCue = nid; selCues = new Set([id, nid]);
     });
     pintarCues();
@@ -796,9 +1013,9 @@ window.Grabadora = null;
     const cues = cuesDePista();
     let txt = '', nom = 'subtitulos-'+stampNom(), mime = 'text/plain';
     if (kind === 'vtt'){ txt = escribirVTT(cues); nom += '.vtt'; }
-    else if (kind === 'txt'){ txt = cues.map(c => c.texto||'').join('\n'); nom += '.txt'; }
+    else if (kind === 'txt'){ txt = cues.map(c => textoConHablante(c)).join('\n'); nom += '.txt'; }
     else if (kind === 'json'){
-      txt = JSON.stringify(cues.map(c => ({ id:c.id, t0:c.t0, t1:c.t1, texto:c.texto, estilo:c.estilo||{}, trackId:c.trackId })), null, 2);
+      txt = JSON.stringify(cues.map(c => ({ id:c.id, t0:c.t0, t1:c.t1, texto:c.texto, hablante:c.hablante||'', hablanteNom:c.hablanteNom||'', estilo:c.estilo||{}, trackId:c.trackId })), null, 2);
       nom += '.json'; mime = 'application/json';
     } else { txt = escribirSRT(cues); nom += '.srt'; }
     if (!String(txt).replace(/^WEBVTT\s*/i,'').trim() && kind !== 'json'){
@@ -971,10 +1188,49 @@ window.Grabadora = null;
     colaPlay = tomas.map(m => m.id); playSiguienteCola();
   }
   function aplicarVel(v){ velPlay = +v || 1; if (player) player.playbackRate = velPlay; }
+  const CODECS_AUDIO = [
+    { id:'audio/webm;codecs=opus', nom:'WebM · Opus' },
+    { id:'audio/webm', nom:'WebM' },
+    { id:'audio/ogg;codecs=opus', nom:'Ogg · Opus' },
+    { id:'audio/ogg', nom:'Ogg' },
+    { id:'audio/mp4;codecs=mp4a.40.2', nom:'MP4 · AAC-LC' },
+    { id:'audio/mp4;codecs=aac', nom:'MP4 · AAC' },
+    { id:'audio/mp4', nom:'MP4' },
+    { id:'audio/mpeg', nom:'MP3' },
+    { id:'audio/wav', nom:'WAV' },
+    { id:'audio/webm;codecs=pcm', nom:'WebM · PCM' }
+  ];
+  function codecsSoportados(){
+    if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') return [];
+    return CODECS_AUDIO.filter(c => {
+      try { return MediaRecorder.isTypeSupported(c.id); } catch(_){ return false; }
+    });
+  }
+  function nomCodec(t){
+    const c = CODECS_AUDIO.find(x => x.id === t);
+    return c ? c.nom : (t || 'MediaRecorder');
+  }
   function mimeAudio(){
-    const c = ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=aac','audio/mp4'];
-    for (const t of c){ if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t; }
-    return '';
+    const sop = codecsSoportados();
+    const pref = (($('selCodec')||{}).value) || (leerUI().codec || '');
+    if (pref && sop.some(c => c.id === pref)) return pref;
+    return sop.length ? sop[0].id : '';
+  }
+  function pintarCodec(){
+    const sop = codecsSoportados();
+    const sel = $('selCodec');
+    const guardado = leerUI().codec || '';
+    if (sel){
+      const actual = sel.options.length ? sel.value : guardado;
+      sel.innerHTML = sop.map(c => '<option value="'+c.id+'">'+c.nom+'</option>').join('') || '<option value="">Automático</option>';
+      if (actual && sop.some(c => c.id === actual)) sel.value = actual;
+    }
+    const t = mimeAudio();
+    if ($('codec')) $('codec').textContent = 'Codec: ' + (t ? nomCodec(t) : '—');
+    const h = $('hintCodec');
+    if (h) h.textContent = sop.length
+      ? ('Listos en este navegador: '+sop.map(c => c.nom).join(' · ')+'.')
+      : 'Este navegador no declara codecs de MediaRecorder.';
   }
   function esMac(){ return /Mac|iPhone|iPad/.test(navigator.platform||'') || /Mac OS X/.test(navigator.userAgent||''); }
   function hintFuente(){
@@ -986,36 +1242,71 @@ window.Grabadora = null;
     if (tipo === 'pantalla' && esMac()) aviso('En Mac la pantalla completa no trae audio de escritorio. Elige «Pestaña» y marca «Compartir audio».', 'err');
     else aviso('Esta captura no trae audio. Marca «Compartir audio» o elige una pestaña.', 'err');
   }
+  function audioCrudo(){
+    return {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+      voiceIsolation: false
+    };
+  }
   function constraintsMic(){
     const on = !!( $('filtrosMic') && $('filtrosMic').checked );
-    return { audio:{ echoCancellation:on, noiseSuppression:on, autoGainControl:on } };
+    return { audio: on
+      ? { echoCancellation:true, noiseSuppression:true, autoGainControl:true }
+      : audioCrudo()
+    };
+  }
+  function constraintsPantalla(){
+    return {
+      video: true,
+      audio: Object.assign({ suppressLocalAudioPlayback: false }, audioCrudo()),
+      systemAudio: 'include'
+    };
+  }
+  async function aplicarCrudo(stream){
+    if (!stream) return stream;
+    const pistas = stream.getAudioTracks();
+    for (let i = 0; i < pistas.length; i++){
+      const t = pistas[i];
+      try { await t.applyConstraints(audioCrudo()); } catch(_){}
+    }
+    return stream;
   }
   async function asegurarMic(){
     const c = JSON.stringify(constraintsMic());
     if (micVivo && micFiltros === c && micVivo.getAudioTracks().some(t => t.readyState==='live')) return micVivo;
     if (micVivo) micVivo.getTracks().forEach(t => { try{ t.stop(); }catch(_){ } });
     micVivo = await navigator.mediaDevices.getUserMedia(constraintsMic());
+    if (!($('filtrosMic') && $('filtrosMic').checked)) await aplicarCrudo(micVivo);
     micFiltros = c; return micVivo;
+  }
+  async function abrirPantalla(){
+    let disp;
+    try { disp = await navigator.mediaDevices.getDisplayMedia(constraintsPantalla()); }
+    catch(_){ disp = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true }); }
+    await aplicarCrudo(disp);
+    extra.push(disp);
+    return disp;
   }
   async function abrirFuente(tipo){
     extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} }); extra = [];
     if (tipo === 'pestana' || tipo === 'pantalla'){
-      const disp = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true });
-      extra.push(disp);
+      const disp = await abrirPantalla();
       if (!disp.getAudioTracks().length) avisoSinAudio(tipo);
       return new MediaStream(disp.getAudioTracks());
     }
     if (tipo === 'mezcla'){
       const mic = await asegurarMic();
       let disp;
-      try{ disp = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true }); extra.push(disp); }
+      try{ disp = await abrirPantalla(); }
       catch(_){ aviso('Sin pantalla: la mezcla sigue solo con el micrófono.', 'info'); return mic; }
       if (!disp.getAudioTracks().length) avisoSinAudio('pantalla');
       const AC = window.AudioContext || window.webkitAudioContext;
       ctxMix = new AC();
       const dest = ctxMix.createMediaStreamDestination();
       ctxMix.createMediaStreamSource(mic).connect(dest);
-      if (disp.getAudioTracks().length) ctxMix.createMediaStreamSource(disp).connect(dest);
+      if (disp.getAudioTracks().length) ctxMix.createMediaStreamSource(new MediaStream(disp.getAudioTracks())).connect(dest);
       return dest.stream;
     }
     return asegurarMic();
@@ -1199,6 +1490,10 @@ window.Grabadora = null;
     document.documentElement.classList.toggle('claro', p.tema === 'claro');
     document.documentElement.style.fontSize = ['13px','15px','17px'][Math.max(0, Math.min(2, p.tipo|0))] || '13px';
     if ($('bTema')) $('bTema').textContent = p.tema === 'claro' ? '☾' : '☀';
+    if ($('selIdiomaWh') && p.idiomaWh) $('selIdiomaWh').value = p.idiomaWh;
+    if ($('chkHablantes') && p.hablantesOn != null) $('chkHablantes').checked = !!p.hablantesOn;
+    if ($('chkTiempos') && p.tiemposOn != null) $('chkTiempos').checked = !!p.tiemposOn;
+    if ($('selMaxHab') && p.maxHab) $('selMaxHab').value = String(p.maxHab);
     aplicarModo();
   }
   function setModo(m){
@@ -1292,10 +1587,11 @@ window.Grabadora = null;
     if ($('bLiveOpen')) $('bLiveOpen').classList.toggle('on', !!ver);
     if (box._min) cuerpo.style.display = 'none'; else cuerpo.style.display = '';
     const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const verT = !$('chkLiveTiempos') || $('chkLiveTiempos').checked;
     cuerpo.innerHTML = speechCues.map(c =>
-      '<div class="fra"><span class="ts">['+mmss(c.t0)+']</span><span class="orig">'+esc(c.texto)+'</span>'+
+      '<div class="fra">'+(verT ? '<span class="ts">['+mmss(c.t0)+']</span>' : '')+'<span class="orig">'+esc(c.texto)+'</span>'+
       (c.trad ? '<span class="trad">'+esc(c.trad)+'</span>' : '')+'</div>'
-    ).join('') + (inter ? '<div class="fra"><span class="ts"></span><span class="trad">… '+esc(inter)+'</span></div>' : '');
+    ).join('') + (inter ? '<div class="fra">'+(verT ? '<span class="ts"></span>' : '')+'<span class="trad">… '+esc(inter)+'</span></div>' : '');
     cuerpo.scrollTop = cuerpo.scrollHeight;
   }
   async function traducirLiveLinea(cue){
@@ -1407,16 +1703,295 @@ window.Grabadora = null;
     try{ ctx2.close(); }catch(_){}
     return raw;
   }
+  async function pcmMono16k(blob){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC || !blob) return null;
+    const ac = new AC();
+    let buf;
+    try { buf = await ac.decodeAudioData(await blob.arrayBuffer()); }
+    catch(_){ try{ ac.close(); }catch(__){} return null; }
+    try{ ac.close(); }catch(_){}
+    const n = buf.length, chs = buf.numberOfChannels, sr = buf.sampleRate;
+    const mono = new Float32Array(n);
+    for (let c = 0; c < chs; c++){
+      const ch = buf.getChannelData(c);
+      for (let i = 0; i < n; i++) mono[i] += ch[i] / chs;
+    }
+    if (sr === 16000) return { pcm: mono, sr: 16000 };
+    const ratio = sr / 16000, outLen = Math.max(1, Math.round(n / ratio));
+    const out = new Float32Array(outLen);
+    for (let j = 0; j < outLen; j++){
+      const x = j * ratio, i0 = Math.floor(x), i1 = Math.min(n - 1, i0 + 1), f = x - i0;
+      out[j] = mono[i0] * (1 - f) + mono[i1] * f;
+    }
+    return { pcm: out, sr: 16000 };
+  }
+  function featsTrozo(pcm, sr, t0, t1){
+    const a = Math.max(0, Math.floor(t0 * sr));
+    const b = Math.min(pcm.length, Math.floor(t1 * sr));
+    if (b - a < sr * 0.12) return null;
+    const sl = pcm.subarray(a, b);
+    let e = 0, zc = 0;
+    for (let i = 0; i < sl.length; i++){
+      e += sl[i] * sl[i];
+      if (i && ((sl[i] >= 0) !== (sl[i-1] >= 0))) zc++;
+    }
+    const rms = Math.sqrt(e / sl.length);
+    if (rms < 0.004) return null;
+    const nfft = 256;
+    const bands = [0, 0, 0, 0, 0];
+    const cortes = [300, 800, 2000, 4000, 8000];
+    let centN = 0, centD = 0, frames = 0;
+    const hop = 160;
+    for (let off = 0; off + nfft < sl.length && frames < 14; off += hop){
+      let wE = 0;
+      for (let i = 0; i < nfft; i++) wE += sl[off+i] * sl[off+i];
+      if (wE / nfft < rms * rms * 0.15) continue;
+      frames++;
+      for (let k = 1; k < nfft / 2; k++){
+        let re = 0, im = 0;
+        for (let i = 0; i < nfft; i++){
+          const ang = (-2 * Math.PI * k * i) / nfft;
+          re += sl[off+i] * Math.cos(ang);
+          im += sl[off+i] * Math.sin(ang);
+        }
+        const mag = re * re + im * im;
+        const hz = k * sr / nfft;
+        centN += hz * mag; centD += mag;
+        let bi = 4;
+        for (let c = 0; c < cortes.length; c++){ if (hz < cortes[c]){ bi = c; break; } }
+        bands[bi] += mag;
+      }
+    }
+    const sumB = bands.reduce((s,v) => s+v, 0) || 1;
+    let pitch = 0;
+    const w0 = Math.min(sl.length, Math.floor(sr * 0.05));
+    if (w0 > 80){
+      let best = 0, bestL = 0;
+      const minL = Math.floor(sr / 320), maxL = Math.floor(sr / 70);
+      for (let lag = minL; lag <= maxL; lag++){
+        let acc = 0;
+        for (let i = 0; i < w0 - lag; i++) acc += sl[i] * sl[i+lag];
+        if (acc > best){ best = acc; bestL = lag; }
+      }
+      if (bestL) pitch = sr / bestL;
+    }
+    return [
+      Math.log(rms + 1e-6),
+      zc / sl.length,
+      centD ? centN / centD / 4000 : 0,
+      bands[0]/sumB, bands[1]/sumB, bands[2]/sumB, bands[3]/sumB, bands[4]/sumB,
+      pitch / 300
+    ];
+  }
+  function clusterHablantes(vecs, maxK){
+    const n = vecs.length;
+    if (!n) return [];
+    const dim = vecs[0].length;
+    const mean = new Array(dim).fill(0), sd = new Array(dim).fill(0);
+    for (let i = 0; i < n; i++) for (let d = 0; d < dim; d++) mean[d] += vecs[i][d];
+    for (let d = 0; d < dim; d++) mean[d] /= n;
+    for (let i = 0; i < n; i++) for (let d = 0; d < dim; d++){
+      const x = vecs[i][d] - mean[d]; sd[d] += x * x;
+    }
+    for (let d = 0; d < dim; d++) sd[d] = Math.sqrt(sd[d] / n) || 1;
+    const z = vecs.map(v => v.map((x,d) => (x - mean[d]) / sd[d]));
+    const lab = z.map((_, i) => i);
+    function dist(i, j){
+      let s = 0;
+      for (let d = 0; d < dim; d++){ const x = z[i][d] - z[j][d]; s += x * x; }
+      return Math.sqrt(s);
+    }
+    function nClus(){ return new Set(lab).size; }
+    const TH = 2.6;
+    while (nClus() > 1){
+      let best = Infinity, ia = -1, ib = -1;
+      const ids = [...new Set(lab)];
+      for (let a = 0; a < ids.length; a++){
+        for (let b = a + 1; b < ids.length; b++){
+          let acc = 0, cnt = 0;
+          for (let i = 0; i < n; i++) if (lab[i] === ids[a])
+            for (let j = 0; j < n; j++) if (lab[j] === ids[b]){ acc += dist(i,j); cnt++; }
+          const d = cnt ? acc / cnt : Infinity;
+          if (d < best){ best = d; ia = ids[a]; ib = ids[b]; }
+        }
+      }
+      if (ia < 0) break;
+      if (nClus() <= maxK && best > TH) break;
+      if (best > TH * 1.6) break;
+      for (let i = 0; i < n; i++) if (lab[i] === ib) lab[i] = ia;
+    }
+    const map = {}, out = new Array(n);
+    let k = 0;
+    for (let i = 0; i < n; i++){
+      if (map[lab[i]] == null) map[lab[i]] = String(++k);
+      out[i] = map[lab[i]];
+    }
+    return out;
+  }
+  async function etiquetarHablantes(blob){
+    const cues = cuesDePista();
+    if (!cues.length){ aviso('No hay subtítulos que etiquetar.', 'err'); return 0; }
+    if (!blob){ aviso('Elige una toma con audio.', 'err'); return 0; }
+    const eng = window.DiarizationEngine;
+    if (!eng || !eng.diarizar){ aviso('Sin motor de diarización.', 'info'); return 0; }
+    aviso('Detectando hablantes…', 'info');
+    const maxK = Math.max(2, Math.min(4, +(($('selMaxHab')||{}).value || 3)));
+    const r = await eng.diarizar(blob, { cues: cues, maxK: maxK });
+    const fusion = eng.fusionar ? eng.fusionar(cues, r.turnos || []) : (r.turnos || []);
+    enLote('hablantes', () => {
+      fusion.forEach(t => {
+        const clip = P.clips[t.id]; if (!clip || !clip.props) return;
+        const id = String(t.hablante || '1');
+        clip.props.hablante = id;
+        clip.props.hablanteNom = nomDeHablante(id);
+      });
+    });
+    pintarCues();
+    const n = new Set(fusion.map(t => t.hablante).filter(Boolean)).size;
+    aviso(n+' hablante'+(n===1?'':'s')+' en la toma.', 'ok');
+    return n;
+  }
+  function blobTomaActiva(){
+    const id = selId || currentId;
+    const m = id && P.medios.get(id);
+    return m && m.blob ? m.blob : null;
+  }
+  const IDIOMAS_WH = [
+    { id:'auto', nom:'Auto-detectar' },
+    { id:'es', nom:'Español' },
+    { id:'en', nom:'Inglés' },
+    { id:'fr', nom:'Francés' },
+    { id:'pt', nom:'Portugués' },
+    { id:'it', nom:'Italiano' },
+    { id:'de', nom:'Alemán' }
+  ];
+  function nomIdiomaWh(id){
+    const x = IDIOMAS_WH.find(i => i.id === id);
+    return x ? x.nom : (id || 'idioma');
+  }
+  function idiomaWhSel(){
+    return (($('selIdiomaWh')||{}).value) || (leerUI().idiomaWh || 'auto');
+  }
+  function setIcoLang(modo, title){
+    const ico = $('icoIdiomaWh'); if (!ico) return;
+    ico.classList.toggle('wait', modo === 'wait');
+    ico.textContent = modo === 'ok' ? '✅' : modo === 'wait' ? '⏳' : '☁️';
+    ico.title = title || '';
+  }
+  function pctProgreso(p){
+    const n = (p && typeof p.progress === 'number') ? p.progress : 0;
+    return n <= 1 ? n * 100 : n;
+  }
+  async function idiomaDescargado(code){
+    const eng = window.WhisperEngine;
+    if (!eng || !eng.idiomaListo) return false;
+    try { return !!(await eng.idiomaListo(code)); } catch(_){ return false; }
+  }
+  async function pintarEstadoIdioma(){
+    const code = idiomaWhSel();
+    const eng = window.WhisperEngine;
+    if (!eng){ setIcoLang('off', 'Sin motor'); return; }
+    if (eng.estado && eng.estado() === 'descargando'){ setIcoLang('wait', 'Descargando…'); return; }
+    setIcoLang((await idiomaDescargado(code)) ? 'ok' : 'off', nomIdiomaWh(code));
+  }
   function pintarWhisper(){
     const el = $('estWhisper'); const eng = window.WhisperEngine;
     const down = $('bWhisperDown'), del = $('bWhisperDel');
     if (down) down.hidden = !eng; if (del) del.hidden = !eng;
-    if (!el) return;
-    if (!eng){ el.textContent = ''; return; }
-    const st = eng.estado();
-    el.textContent = st==='listo' ? ('Whisper listo · '+(eng.webgpu && eng.webgpu() ? 'WebGPU':'WASM')) :
-      st==='descargando' ? 'Descargando modelo…' :
-      st==='error' ? 'Error al cargar el modelo' : 'Motor listo. Descarga el modelo una vez (~75 MB).';
+    if (el){
+      if (!eng) el.textContent = '';
+      else {
+        const st = eng.estado();
+        const gpu = !!(eng.webgpu && eng.webgpu());
+        const tag = eng.etiquetaModelo ? eng.etiquetaModelo() : 'tiny';
+        const chip = gpu ? '⚡ GPU' : '🐢 CPU';
+        el.textContent = st==='listo' ? ('Whisper listo · '+chip+' · Modelo: '+tag) :
+          st==='descargando' ? 'Descargando modelo…' :
+          st==='error' ? 'Error al cargar el modelo' : ('Motor listo · '+chip+' · Descarga ~75 MB una vez.');
+      }
+    }
+    if ($('estMotor')){
+      const gpu = !!(eng && eng.webgpu && eng.webgpu());
+      $('estMotor').textContent = eng ? (gpu ? '⚡ GPU' : '🐢 CPU') : '';
+    }
+    pintarEstadoIdioma();
+  }
+  async function descargarIdioma(code, opts){
+    opts = opts || {};
+    const eng = window.WhisperEngine;
+    if (!eng) throw new Error('Whisper no disponible');
+    const nom = nomIdiomaWh(code);
+    setIcoLang('wait', 'Descargando '+nom);
+    downCancel = false;
+    setProg(1);
+    await eng.cargar({ onProgreso: p => setProg(pctProgreso(p)) });
+    let bytes = 75 * 1024 * 1024;
+    try { if (eng.bytesCache) bytes = (await eng.bytesCache()) || bytes; } catch(_){}
+    if (eng.marcarIdioma) await eng.marcarIdioma(code, { bytes: bytes, nombre: nom });
+    setProg(100);
+    setTimeout(() => setProg(null), 400);
+    setIcoLang('ok', nom+' listo');
+    pintarWhisper();
+    if (!opts.silencio) aviso('Modelo de '+nom+' listo.', 'ok');
+    return true;
+  }
+  async function pintarListaIdiomas(){
+    const box = $('listaIdiomas'); if (!box) return;
+    const eng = window.WhisperEngine;
+    const map = (eng && eng.listarIdiomas) ? (await eng.listarIdiomas()) : {};
+    let bytesAll = 0;
+    try { if (eng && eng.bytesCache) bytesAll = await eng.bytesCache(); } catch(_){}
+    if ($('sumIdiomas')) $('sumIdiomas').textContent = bytesAll
+      ? ('En caché: '+(bytesAll/1048576).toFixed(1)+' MB. Un solo modelo multilingüe; cada idioma se activa sobre esa copia.')
+      : 'Aún no hay modelo en este equipo (~75 MB).';
+    box.innerHTML = '';
+    IDIOMAS_WH.forEach(it => {
+      const info = map[it.id];
+      const row = document.createElement('div');
+      row.className = 'filaIdioma';
+      const mb = info ? (((info.bytes||75*1048576)/1048576).toFixed(1)+' MB') : '—';
+      row.innerHTML = '<b></b><span class="sz"></span>';
+      row.querySelector('b').textContent = it.nom;
+      row.querySelector('.sz').textContent = info ? ('✅ '+mb) : '☁️';
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn';
+      b.textContent = info ? 'Borrar' : 'Bajar';
+      b.onclick = async () => {
+        try {
+          if (info){
+            if (eng && eng.borrarIdioma) await eng.borrarIdioma(it.id);
+            aviso(it.nom+' borrado.', 'ok');
+          } else {
+            await descargarIdioma(it.id);
+          }
+          await pintarListaIdiomas();
+          await pintarEstadoIdioma();
+          pintarWhisper();
+        } catch(e){ aviso(msgDescarga(e), 'err'); }
+      };
+      row.appendChild(b);
+      box.appendChild(row);
+    });
+  }
+  function abrirIdiomas(){
+    const d = $('dlgIdiomas'); if (!d) return;
+    d.classList.add('on');
+    pintarListaIdiomas();
+  }
+  function cerrarIdiomas(){ const d = $('dlgIdiomas'); if (d) d.classList.remove('on'); }
+  async function onIdiomaWh(){
+    const code = idiomaWhSel();
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.idiomaWh = code; salvarUI(p);
+    if (await idiomaDescargado(code)){ await pintarEstadoIdioma(); return; }
+    try { await descargarIdioma(code); }
+    catch(e){ setProg(null); setIcoLang('off'); aviso(msgDescarga(e), 'err'); }
+  }
+  function registrarSW(){
+    if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+    const url = (() => { try { return new URL('whisper-sw.js', location.href).href; } catch(_){ return 'whisper-sw.js'; } })();
+    navigator.serviceWorker.register(url).catch(() => {});
   }
   let weCarga = null;
   function urlsWhisper(){
@@ -1462,6 +2037,34 @@ window.Grabadora = null;
     })();
     return weCarga.then(ok => { if (!ok) weCarga = null; return ok; });
   }
+  function urlsDiar(){
+    const out = [];
+    try { out.push(new URL('DiarizationEngine.js', location.href).href); } catch(_){}
+    out.push('DiarizationEngine.js');
+    out.push('./DiarizationEngine.js');
+    return out.filter((u, i, a) => a.indexOf(u) === i);
+  }
+  let diarCarga = null;
+  function mostrarCajaHab(on){
+    const caja = $('cajaHab'); if (!caja) return;
+    caja.hidden = !on;
+  }
+  function loadDiarization(){
+    if (window.DiarizationEngine){ mostrarCajaHab(true); return Promise.resolve(true); }
+    if (diarCarga) return diarCarga;
+    diarCarga = (async () => {
+      const urls = urlsDiar();
+      for (let i = 0; i < urls.length; i++){
+        try {
+          await inyectarScript(urls[i]);
+          if (window.DiarizationEngine){ mostrarCajaHab(true); return true; }
+        } catch(_){}
+      }
+      mostrarCajaHab(false);
+      return false;
+    })();
+    return diarCarga.then(ok => { if (!ok) diarCarga = null; return ok; });
+  }
   function modeloListo(){ const eng = window.WhisperEngine; return !!(eng && eng.estado && eng.estado()==='listo'); }
   let genPendiente = null;
   async function pedirGenerar(id){
@@ -1472,7 +2075,7 @@ window.Grabadora = null;
       await loadWhisper();
       aviso('');
     }
-    if (modeloListo()){ transcribirToma(genPendiente); return; }
+    if (modeloListo() || await idiomaDescargado(idiomaWhSel())){ transcribirToma(genPendiente); return; }
     const hayEng = !!window.WhisperEngine;
     $('dlgGen').classList.add('on');
     $('bGenSi').style.display = hayEng ? '' : 'none';
@@ -1509,10 +2112,7 @@ window.Grabadora = null;
     cerrarGen();
     if (!window.WhisperEngine){ aviso('Falta WhisperEngine.js al lado del HTML.', 'err'); return; }
     try{
-      downCancel = false;
-      setProg(1);
-      await window.WhisperEngine.cargar({ onProgreso: p => setProg(p.progress||0) });
-      setProg(100); pintarWhisper();
+      await descargarIdioma(idiomaWhSel(), { silencio:true });
       await transcribirToma(genPendiente);
     }catch(e){
       setProg(null);
@@ -1527,7 +2127,9 @@ window.Grabadora = null;
     aviso('Marcas de voz…', 'info');
     const segs = await vadDeBlob(m.blob);
     if (!segs.length){ aviso('VAD: no hay voz.', 'err'); return; }
-    aviso(meterCues(segs)+' marcas [Voz local].', 'ok');
+    const n = meterCues(segs);
+    if ($('chkHablantes') && $('chkHablantes').checked) await etiquetarHablantes(m.blob);
+    aviso(n+' marcas [Voz local].', 'ok');
   }
   async function transcribirToma(id){
     const m = P.medios.get(id || selId || currentId);
@@ -1536,22 +2138,28 @@ window.Grabadora = null;
     try{
       if (eng){
         aviso('Transcribiendo con Whisper…', 'info');
-        if (eng.estado() !== 'listo'){
+        const code = idiomaWhSel();
+        if (eng.estado() !== 'listo' || !(await idiomaDescargado(code))){
           downCancel = false;
-          setProg(1);
-          await eng.cargar({ onProgreso: p => setProg(p.progress||0) });
-          setProg(100);
+          await descargarIdioma(code, { silencio:true });
         }
-        const r = await eng.transcribir(m.blob, { idioma:'es' });
+        const r = await eng.transcribir(m.blob, { idioma: code });
         const segs = (r && r.segmentos) || [];
         if (!segs.length){ aviso('Whisper no detectó voz.', 'err'); return 0; }
         const n = meterCues(segs);
-        aviso(n+' subtítulos (Whisper).', 'ok'); return n;
+        if ($('chkHablantes') && $('chkHablantes').checked) await etiquetarHablantes(m.blob);
+        const seg = (r && r.ms) ? (r.ms/1000).toFixed(1)+'s' : '';
+        if ($('chkTiempos') && $('chkTiempos').checked && seg){
+          if ($('lapsoWh')){ $('lapsoWh').style.display = 'block'; $('lapsoWh').textContent = 'Transcripción: '+seg; }
+          aviso(n+' subtítulos (Whisper). Transcripción: '+seg, 'ok');
+        } else aviso(n+' subtítulos (Whisper).', 'ok');
+        return n;
       }
       aviso('Sin Whisper. VAD (tiempos, sin texto).', 'info');
       const segs = await vadDeBlob(m.blob);
       if (!segs.length){ aviso('VAD: no hay voz.', 'err'); return 0; }
       const n = meterCues(segs);
+      if ($('chkHablantes') && $('chkHablantes').checked) await etiquetarHablantes(m.blob);
       aviso(n+' marcas de voz [Voz local].', 'ok'); return n;
     }catch(e){ setProg(null); aviso(msgDescarga(e), 'err'); return 0; }
   }
@@ -1659,6 +2267,13 @@ window.Grabadora = null;
 
   $('fuente').onchange = hintFuente; hintFuente();
   $('filtrosMic').onchange = () => { micFiltros = null; };
+  if ($('selCodec')) $('selCodec').onchange = () => {
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.codec = $('selCodec').value || '';
+    salvarUI(p);
+    pintarCodec();
+  };
+  pintarCodec();
   if ($('chkSpeech')){
     $('chkSpeech').onchange = () => {
       liveActivo = !!$('chkSpeech').checked;
@@ -1679,15 +2294,56 @@ window.Grabadora = null;
   $('bGenVad').onclick = () => genVad();
   $('bGenNo').onclick = () => cerrarGen();
   if ($('bDownX')) $('bDownX').onclick = () => cerrarDown();
-  ['dlgGen','dlgDown','dlgProy'].forEach(id => {
+  ['dlgGen','dlgDown','dlgProy','dlgIdiomas'].forEach(id => {
     const d = $(id); if (!d) return;
     d.addEventListener('click', ev => {
       if (ev.target !== d) return;
       if (id === 'dlgGen') cerrarGen();
       else if (id === 'dlgDown') cerrarDown();
+      else if (id === 'dlgIdiomas') cerrarIdiomas();
       else { d.classList.remove('on'); mostrarAvisoSesion(); }
     });
   });
+  if ($('bGestIdiomas')) $('bGestIdiomas').onclick = () => abrirIdiomas();
+  if ($('bIdiomasX')) $('bIdiomasX').onclick = () => cerrarIdiomas();
+  if ($('selIdiomaWh')) $('selIdiomaWh').onchange = () => onIdiomaWh();
+  if ($('chkHablantes')) $('chkHablantes').onchange = async () => {
+    const on = !!$('chkHablantes').checked;
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    if (on){
+      const eng = window.DiarizationEngine;
+      if (!eng){ $('chkHablantes').checked = false; aviso('Requiere motor de diarización.', 'info'); return; }
+      try {
+        const hay = eng.hayCache ? await eng.hayCache() : false;
+        if (!hay && !confirm('Descargar modelo de hablantes (~6 MB, una vez, 100% local)?')){
+          $('chkHablantes').checked = false; return;
+        }
+        if (eng.estado && eng.estado() !== 'listo'){
+          downCancel = false; setProg(1);
+          await eng.cargar({ onProgreso: q => setProg(pctProgreso(q)) });
+          setProg(100); setTimeout(() => setProg(null), 400);
+          aviso('Modelo de hablantes listo.', 'ok');
+        }
+      } catch(e){
+        setProg(null);
+        $('chkHablantes').checked = false;
+        aviso('No se pudo bajar el modelo de hablantes.', 'err');
+        return;
+      }
+    }
+    p.hablantesOn = !!$('chkHablantes').checked; salvarUI(p);
+    pintarCues();
+  };
+  if ($('chkTiempos')) $('chkTiempos').onchange = () => {
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.tiemposOn = !!$('chkTiempos').checked; salvarUI(p);
+    if ($('lapsoWh') && !$('chkTiempos').checked) $('lapsoWh').style.display = 'none';
+  };
+  if ($('selMaxHab')) $('selMaxHab').onchange = () => {
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.maxHab = +$('selMaxHab').value || 3; salvarUI(p);
+  };
+  if ($('bHablantes')) $('bHablantes').onclick = () => etiquetarHablantes(blobTomaActiva());
   $('bProySi').onclick = () => { $('dlgProy').classList.remove('on'); cargarProyecto(); };
   $('bProyNo').onclick = () => { $('dlgProy').classList.remove('on'); mostrarAvisoSesion(); };
   $('bSesionX').onclick = () => $('avisoSesion').classList.remove('on');
@@ -1701,6 +2357,57 @@ window.Grabadora = null;
   };
   $('bLiveX').onclick = () => cerrarLive();
   if ($('liveLang')) $('liveLang').onchange = () => { speechCues.forEach(c => { c.trad=''; traducirLiveLinea(c); }); };
+  function cerrarMenuLive(){ const b = $('liveBox'); if (b) b.classList.remove('menu-on'); }
+  function abrirMenuLive(ev){
+    if (ev) ev.stopPropagation();
+    const b = $('liveBox'); if (!b) return;
+    b.classList.toggle('menu-on');
+    if ($('liveIdiomaWh') && $('selIdiomaWh')) $('liveIdiomaWh').value = $('selIdiomaWh').value;
+  }
+  function posLive(donde){
+    const box = $('liveBox'); if (!box) return;
+    box.style.left = box.style.top = box.style.right = box.style.bottom = 'auto';
+    if (donde === 'bl'){ box.style.left = '16px'; box.style.bottom = '16px'; }
+    else if (donde === 'tr'){ box.style.right = '16px'; box.style.top = '16px'; }
+    else if (donde === 'tl'){ box.style.left = '16px'; box.style.top = '16px'; }
+    else { box.style.right = '16px'; box.style.bottom = '16px'; }
+    cerrarMenuLive();
+  }
+  if ($('bLiveGear')) $('bLiveGear').onclick = ev => { ev.stopPropagation(); abrirMenuLive(ev); };
+  if ($('liveMenu')){
+    $('liveMenu').addEventListener('pointerdown', ev => ev.stopPropagation());
+    $('liveMenu').querySelectorAll('[data-pos]').forEach(b => {
+      b.onclick = ev => { ev.stopPropagation(); posLive(b.getAttribute('data-pos')); };
+    });
+  }
+  if ($('liveIdiomaWh')) $('liveIdiomaWh').onchange = () => {
+    if ($('selIdiomaWh')){
+      $('selIdiomaWh').value = $('liveIdiomaWh').value;
+      if (typeof onIdiomaWh === 'function') onIdiomaWh();
+    }
+  };
+  if ($('chkLiveTiempos')) $('chkLiveTiempos').onchange = () => {
+    if ($('chkTiempos')) $('chkTiempos').checked = $('chkLiveTiempos').checked;
+    pintarLive(true);
+  };
+  if ($('chkLivePriv')) $('chkLivePriv').onchange = () => {
+    const box = $('liveBox');
+    if (box) box.classList.toggle('sin-priv', !$('chkLivePriv').checked);
+  };
+  if ($('bLiveGestId')) $('bLiveGestId').onclick = ev => { ev.stopPropagation(); cerrarMenuLive(); if (typeof abrirIdiomas === 'function') abrirIdiomas(); };
+  if ($('bLiveInfo')) $('bLiveInfo').onclick = ev => {
+    ev.stopPropagation();
+    const p = $('livePriv');
+    if (p){ p.classList.add('on'); p.style.display = ''; }
+    if ($('chkLivePriv')) $('chkLivePriv').checked = true;
+    cerrarMenuLive();
+  };
+  document.addEventListener('pointerdown', ev => {
+    const box = $('liveBox');
+    if (!box || !box.classList.contains('menu-on')) return;
+    if (ev.target.closest('#liveMenu') || ev.target.closest('#bLiveGear')) return;
+    cerrarMenuLive();
+  });
   (function ventanaLive(){
     const box = $('liveBox'), cab = $('liveCab'), sz = $('liveSz');
     if (!box || !cab) return;
@@ -1737,7 +2444,7 @@ window.Grabadora = null;
     };
     cab.addEventListener('pointerdown', ev => {
       if (ev.button !== 0) return;
-      if (ev.target.closest('button,select')) return;
+      if (ev.target.closest('button,select,#liveMenu')) return;
       ev.preventDefault();
       ev.stopPropagation();
       const r = box.getBoundingClientRect();
@@ -1809,18 +2516,15 @@ window.Grabadora = null;
   $('cajaCues').addEventListener('keydown', atajosCues);
   $('bTranscribir').onclick = () => pedirGenerar();
   $('bWhisperDown').onclick = async () => {
-    if (!window.WhisperEngine){ aviso('Whisper no disponible.'); return; }
-    try{
-      downCancel = false;
-      setProg(1);
-      await window.WhisperEngine.cargar({ onProgreso: p => setProg(p.progress||0) });
-      setProg(100); pintarWhisper(); aviso('Modelo listo.', 'ok');
-    }catch(e){ setProg(null); aviso(msgDescarga(e),'err'); pintarWhisper(); }
+    try { await descargarIdioma(idiomaWhSel()); await pintarListaIdiomas(); }
+    catch(e){ setProg(null); aviso(msgDescarga(e),'err'); pintarWhisper(); }
   };
   $('bWhisperDel').onclick = async () => {
     if (!window.WhisperEngine) return;
-    if (!confirm('¿Borrar modelo local?')) return;
-    await window.WhisperEngine.borrar(); pintarWhisper(); aviso('Modelo borrado.', 'ok');
+    if (!confirm('¿Borrar el modelo y todos los idiomas?')) return;
+    await window.WhisperEngine.borrar();
+    pintarWhisper(); await pintarListaIdiomas(); await pintarEstadoIdioma();
+    aviso('Modelo borrado.', 'ok');
   };
   $('bTema').onclick = () => {
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
@@ -1835,10 +2539,15 @@ window.Grabadora = null;
     p.tipo = Math.min(2,(p.tipo|0)+1); salvarUI(p); aplicarUI();
   };
   addEventListener('whisper-estado', pintarWhisper);
-  window.addEventListener('pagehide', () => { pararPlayer(); soltarMic(); });
+  window.addEventListener('pagehide', () => {
+    pararPlayer(); soltarMic();
+    try { if (window.WhisperEngine && window.WhisperEngine.liberar) window.WhisperEngine.liberar(); } catch(_){}
+  });
   aplicarUI();
   pintarBadge(); pintarOnda(false); pintarLista(); pintarCues();
   loadWhisper();
+  loadDiarization();
+  registrarSW();
   arranqueProyecto();
   window.Grabadora = { iniciar, detener, insertar, estado: () => estado, transcribirToma };
   window.Subtitulos = { leerSRT, leerVTT, escribirSRT, escribirVTT };
