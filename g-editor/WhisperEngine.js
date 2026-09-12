@@ -8,6 +8,22 @@
 
   var MODELO = 'onnx-community/whisper-tiny';
   var TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2';
+  var TF_DIST = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/dist/';
+  var HF_HOST = 'https://huggingface.co/';
+
+  function aplicarEnv(env) {
+    if (!env) return;
+    env.allowLocalModels = false;
+    env.allowRemoteModels = true;
+    env.useBrowserCache = true;
+    env.remoteHost = HF_HOST;
+    env.remotePathTemplate = '{model}/resolve/{revision}/';
+    try {
+      if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
+        env.backends.onnx.wasm.wasmPaths = TF_DIST;
+      }
+    } catch (_) {}
+  }
   var estado = 'no-descargado';
   var ultimoError = '';
   var pipe = null;
@@ -133,7 +149,11 @@
     return [
       'import { pipeline, env } from "' + TF_URL + '";',
       'env.allowLocalModels = false;',
+      'env.allowRemoteModels = true;',
       'env.useBrowserCache = true;',
+      'env.remoteHost = "' + HF_HOST + '";',
+      'env.remotePathTemplate = "{model}/resolve/{revision}/";',
+      'try { if (env.backends && env.backends.onnx && env.backends.onnx.wasm) env.backends.onnx.wasm.wasmPaths = "' + TF_DIST + '"; } catch (e) {}',
       'let pipe = null;',
       'self.onmessage = async (ev) => {',
       '  const { id, tipo, payload } = ev.data || {};',
@@ -205,8 +225,7 @@
 
   async function cargarEnHilo(opts) {
     tfMod = await import(TF_URL);
-    tfMod.env.allowLocalModels = false;
-    tfMod.env.useBrowserCache = true;
+    aplicarEnv(tfMod.env);
     var device = webgpu ? 'webgpu' : 'wasm';
     try {
       pipe = await tfMod.pipeline('automatic-speech-recognition', MODELO, {

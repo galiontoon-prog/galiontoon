@@ -1356,20 +1356,60 @@ window.Grabadora = null;
       st==='descargando' ? 'Descargando modelo…' :
       st==='error' ? 'Error al cargar el modelo' : 'Motor listo. Descarga el modelo una vez (~75 MB).';
   }
+  let weCarga = null;
+  function urlsWhisper(){
+    const out = [];
+    try { out.push(new URL('WhisperEngine.js', location.href).href); } catch(_){}
+    out.push('WhisperEngine.js');
+    out.push('./WhisperEngine.js');
+    return out.filter((u, i, a) => a.indexOf(u) === i);
+  }
+  function inyectarScript(src){
+    return new Promise((ok, mal) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => ok(!!window.WhisperEngine);
+      s.onerror = () => mal(new Error('no-script'));
+      document.head.appendChild(s);
+    });
+  }
   function loadWhisper(){
-    if (window.WhisperEngine){ pintarWhisper(); return; }
-    if (window._weTried){ pintarWhisper(); return; }
-    window._weTried = true;
-    const s = document.createElement('script');
-    s.src = './WhisperEngine.js';
-    s.onload = pintarWhisper; s.onerror = pintarWhisper;
-    document.head.appendChild(s);
+    if (window.WhisperEngine){ pintarWhisper(); return Promise.resolve(true); }
+    if (weCarga) return weCarga;
+    weCarga = (async () => {
+      const urls = urlsWhisper();
+      for (let i = 0; i < urls.length; i++){
+        try {
+          await inyectarScript(urls[i]);
+          if (window.WhisperEngine){ pintarWhisper(); return true; }
+        } catch(_){}
+      }
+      for (let i = 0; i < urls.length; i++){
+        try {
+          const r = await fetch(urls[i], { cache:'no-store' });
+          if (!r.ok) continue;
+          const txt = await r.text();
+          if (txt.indexOf('WhisperEngine') < 0) continue;
+          const burl = URL.createObjectURL(new Blob([txt], { type:'text/javascript' }));
+          await inyectarScript(burl);
+          if (window.WhisperEngine){ pintarWhisper(); return true; }
+        } catch(_){}
+      }
+      pintarWhisper();
+      return false;
+    })();
+    return weCarga.then(ok => { if (!ok) weCarga = null; return ok; });
   }
   function modeloListo(){ const eng = window.WhisperEngine; return !!(eng && eng.estado && eng.estado()==='listo'); }
   let genPendiente = null;
-  function pedirGenerar(id){
+  async function pedirGenerar(id){
     genPendiente = id || selId || currentId;
     if (!P.medios.get(genPendiente) || !P.medios.get(genPendiente).blob){ aviso('Elige una toma con audio.', 'err'); return; }
+    if (!window.WhisperEngine){
+      aviso('Cargando motor…', 'info');
+      await loadWhisper();
+      aviso('');
+    }
     if (modeloListo()){ transcribirToma(genPendiente); return; }
     const hayEng = !!window.WhisperEngine;
     $('dlgGen').classList.add('on');
@@ -1377,7 +1417,7 @@ window.Grabadora = null;
     const p = $('dlgGen').querySelector('p');
     p.textContent = hayEng
       ? 'Necesita descargar el modelo (~75 MB, una sola vez). 100% local.'
-      : 'No hay motor Whisper al lado. Puedes marcar tiempos de voz y escribir el texto.';
+      : 'No se cargó WhisperEngine.js (tiene que estar en la misma carpeta que este HTML). Puedes marcar tiempos de voz y escribir el texto.';
   }
   function cerrarGen(){ $('dlgGen').classList.remove('on'); }
   let downCancel = false;
@@ -1397,16 +1437,26 @@ window.Grabadora = null;
     if ($('downPct')) $('downPct').textContent = n+'%';
     if ($('downMb')) $('downMb').textContent = Math.round(n/100*75)+' / 75 MB';
   }
+  function msgDescarga(e){
+    const t = String((e && e.message) || e || '');
+    if (!t || /^https?:\/\//i.test(t) || /failed to fetch|networkerror|load failed|cors|404|not found|wasm/i.test(t))
+      return 'No se pudo bajar el modelo (~75 MB). Red bloqueada o archivo no disponible. Puedes usar marcas de voz.';
+    return t;
+  }
   async function genSi(){
     cerrarGen();
-    if (!window.WhisperEngine){ aviso('Falta WhisperEngine.js.', 'err'); return; }
+    if (!window.WhisperEngine){ aviso('Falta WhisperEngine.js al lado del HTML.', 'err'); return; }
     try{
       downCancel = false;
       setProg(1);
       await window.WhisperEngine.cargar({ onProgreso: p => setProg(p.progress||0) });
       setProg(100); pintarWhisper();
       await transcribirToma(genPendiente);
-    }catch(e){ setProg(null); aviso('Descarga falló: '+(e.message||e),'err'); }
+    }catch(e){
+      setProg(null);
+      aviso(msgDescarga(e), 'err');
+      $('dlgGen').classList.add('on');
+    }
   }
   async function genVad(){
     cerrarGen();
@@ -1441,7 +1491,7 @@ window.Grabadora = null;
       if (!segs.length){ aviso('VAD: no hay voz.', 'err'); return 0; }
       const n = meterCues(segs);
       aviso(n+' marcas de voz [Voz local].', 'ok'); return n;
-    }catch(e){ setProg(null); aviso('Transcribir falló: '+(e.message||e),'err'); return 0; }
+    }catch(e){ setProg(null); aviso(msgDescarga(e), 'err'); return 0; }
   }
 
   function idbAbrir(){
@@ -1703,7 +1753,7 @@ window.Grabadora = null;
       setProg(1);
       await window.WhisperEngine.cargar({ onProgreso: p => setProg(p.progress||0) });
       setProg(100); pintarWhisper(); aviso('Modelo listo.', 'ok');
-    }catch(e){ setProg(null); aviso('Descarga falló: '+(e.message||e),'err'); pintarWhisper(); }
+    }catch(e){ setProg(null); aviso(msgDescarga(e),'err'); pintarWhisper(); }
   };
   $('bWhisperDel').onclick = async () => {
     if (!window.WhisperEngine) return;
