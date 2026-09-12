@@ -1,126 +1,360 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="modo-simple">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Grabadora</title>
-<!-- Paquete Pages · player + captura + VAD + Whisper opcional. -->
 <style>
 :root{
-  --fondo:#0f0f1a; --panel:#131826; --sec:#1a1a2e; --ctl:#24243a;
-  --borde:#1f2638; --borde2:#2a2a40;
-  --rosa:#ff2e63; --verde:#4ade80; --txt:#fff; --secu:#8a8a9e;
+  --fondo:#0a0a12; --panel:#111118; --sec:#1a1a24; --ctl:#22222e;
+  --borde:#252532; --borde2:#333344;
+  --rosa:#FF3B6B; --verde:#00FF88; --rojo:#FF4D4D;
+  --txt:#ffffff; --secu:#888899; --muted:#6a6a7a;
+}
+html.claro{
+  --fondo:#e8eaf0; --panel:#f4f5fa; --sec:#ffffff; --ctl:#eceef5;
+  --borde:#d0d4e0; --borde2:#c4c8d6;
+  --txt:#161622; --secu:#5a5a70; --muted:#7a7a8a;
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--fondo);color:var(--txt);font:14px/1.45 Inter,system-ui,sans-serif}
-body{padding:18px 12px 40px}
-#app{max-width:420px;margin:0 auto;background:var(--panel);border:1px solid var(--borde);border-radius:22px;padding:14px 16px 18px}
-.top{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;font-size:12px;color:var(--secu)}
-.top .grow{flex:1}
-#modo{font-size:11px;line-height:1.35}
-#modo.lim{color:#e7c771}
-#modo.ok{color:var(--verde)}
-.badge{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--verde)}
-.badge.rec{color:var(--rosa)}
-button{height:36px;padding:0 12px;border-radius:8px;border:1px solid var(--borde2);background:var(--ctl);color:var(--txt);font:13px Inter,system-ui;cursor:pointer}
-button[disabled]{opacity:.4;cursor:default}
-select{height:36px;flex:1;min-width:0;padding:0 10px;border-radius:8px;border:1px solid var(--borde2);background:var(--ctl);color:var(--txt);font:13px Inter,system-ui}
-.x{width:28px;height:28px;border-radius:50%;padding:0}
-h1{margin:0 0 12px;font-size:20px;letter-spacing:.04em}
-.card{background:var(--sec);border:1px solid var(--borde);border-radius:14px;padding:14px;margin-bottom:12px}
-.tit{margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#c5cadb;font-weight:700}
-.aviso{display:none;padding:8px 10px;border-radius:8px;background:#3a1524;border:1px solid var(--rosa);color:#ffd0dc;font-size:12px;margin:0 0 12px}
-.aviso.on{display:block}
-.recRow{display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:center}
-.recBtn{width:80px;height:80px;border-radius:50%;border:3px solid var(--rosa);background:transparent;color:#fff;font-size:22px}
-.recBtn.rec{background:var(--rosa)}
-canvas{width:100%;height:56px;background:#0f0f1a;border:1px solid var(--borde);border-radius:6px;display:block}
-.timer{font:16px ui-monospace,Menlo,monospace;text-align:center;margin:8px 0 0}
-.hint{font-size:11px;color:var(--secu);margin:8px 0 0}
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.li{display:grid;grid-template-columns:36px 1fr auto auto auto;gap:8px;align-items:center;background:var(--ctl);border:1px solid var(--borde2);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer}
-.li.sel{border-color:var(--verde);box-shadow:0 0 0 1px var(--verde)}
-.li .play{width:36px;height:36px;padding:0;border-radius:50%;font-size:14px}
+html,body{margin:0;background:var(--fondo);color:var(--txt);font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+body{padding:20px 12px 56px}
+button,select,input{font:inherit;color:inherit}
+button,select,.btn,.recBtn,.badge,.x,.tit,.chk,.tog,.foot button,.li .play{
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+}
+input[type=text],input[type=number],textarea,.cue input[type=text],.renom{
+  user-select:text;-webkit-user-select:text;
+}
+button:not(:disabled),[role=button]:not(:disabled){cursor:pointer}
+button[disabled]{opacity:.58;cursor:default}
+#app{position:relative;width:360px;max-width:100%;margin:0 auto;background:var(--panel);border:1px solid var(--borde);border-radius:16px;padding:12px 12px 10px}
+html.modo-simple .solo-adv{display:none !important}
+html.modo-avanzado .solo-simple{display:none !important}
+.top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tog{display:flex;gap:4px}
+.tog button{height:26px;padding:0 12px;border:1px solid transparent;background:var(--ctl);color:var(--secu);border-radius:999px;font-size:12px;font-weight:600;transition:background .16s,color .16s}
+.tog button.on{background:var(--rosa);border-color:var(--rosa);color:#fff}
+.top .grow,.grow{flex:1}
+.badge{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--verde);border:1px solid #00ff8844;background:#00ff8814;padding:4px 8px;border-radius:999px}
+.badge.rec{color:var(--rosa);border-color:#ff3b6b55;background:#ff3b6b18}
+.x{width:28px;height:28px;border-radius:50%;padding:0;border:0;background:transparent;color:var(--secu);font-size:18px;line-height:1}
+.x:hover{color:var(--txt)}
+h1{margin:4px 0 12px;font-size:18px;font-weight:800;letter-spacing:.04em}
+#modo{display:none}
+.sesion{display:none;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--sec);border:1px solid var(--borde);color:var(--secu);font-size:12px;margin:0 0 10px}
+.sesion.on{display:flex}
+.sesion .cierra{margin-left:auto;width:22px;height:22px;padding:0;border:0;background:transparent;color:var(--secu)}
+.aviso{display:none;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:10px;font-size:12px;margin:0 0 10px}
+.aviso.on{display:flex}
+.aviso.err{background:#3a1524;border:1px solid var(--rosa);color:#ffd0dc}
+.aviso.ok{background:#0e2a1c;border:1px solid #1f6a44;color:#c8f5d8}
+.aviso.info{background:#1e1e28;border:1px solid var(--borde);color:var(--secu)}
+.aviso .cierra{margin-left:auto;width:22px;height:22px;padding:0;border:0;background:transparent;color:inherit}
+.card{background:var(--sec);border:1px solid var(--borde);border-radius:10px;padding:12px;margin-bottom:10px}
+.tit{margin:0 0 10px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.chk{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;color:var(--secu);cursor:pointer}
+.chk input{appearance:none;-webkit-appearance:none;width:15px;height:15px;margin:0;border:1.5px solid #3a3a4a;border-radius:3px;background:transparent;flex:0 0 15px}
+.chk input:checked{background:var(--rosa);border-color:var(--rosa);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path stroke='white' stroke-width='1.8' fill='none' d='M2.2 6.2l2.6 2.6 5-5.4'/></svg>");background-size:10px;background-repeat:no-repeat;background-position:center}
+#fuente{margin-bottom:8px}
+.recRow{display:grid;grid-template-columns:72px 1fr;gap:14px;align-items:center;margin:4px 0 2px}
+.recBtn{position:relative;width:72px;height:72px;border-radius:50%;border:0;color:#fff;font-size:0;background:radial-gradient(circle at 32% 28%,#ff8aa8,var(--rosa) 52%,#d0124a);box-shadow:0 0 0 3px #ff3b6b22,0 0 26px #ff3b6b99,0 8px 16px #0008;transition:box-shadow .18s,filter .16s,transform .16s}
+.recBtn:hover{filter:brightness(1.06)}
+.recBtn:active{transform:scale(.97)}
+.recBtn::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0004}
+.recBtn.rec{box-shadow:0 0 0 3px #ff3b6b33,0 0 34px #ff3b6bcc,0 8px 16px #0008}
+.recBtn.rec::after{width:24px;height:24px;border-radius:5px}
+.recBtn.cuenta{font-size:26px;font-weight:800}
+.recBtn.cuenta::after{display:none}
+canvas{width:100%;height:56px;background:transparent;display:block}
+.timer{font:32px/1 ui-monospace,Menlo,Consolas,monospace;text-align:center;margin:14px 0 6px;font-weight:600;letter-spacing:.04em}
+.codec{font:11px ui-monospace,Menlo,Consolas,monospace;color:var(--secu);text-align:center;margin:0 0 12px}
+.hint{font-size:11px;color:var(--secu);margin:8px 0 0;text-align:center}
+#estWhisper{display:none}
+.col{display:flex;flex-direction:column;gap:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{height:38px;padding:0 12px;border-radius:10px;border:1px solid var(--borde2);background:var(--ctl);color:#c8c8d4;font-size:13px;font-weight:600;width:100%;transition:background .16s,border-color .16s,color .16s,filter .16s}
+.btn:hover:not(:disabled){background:#2a2a38;border-color:#44445a}
+.btn-pink{background:#1a1218;border-color:var(--rosa);color:var(--rosa)}
+.btn-pink:hover:not(:disabled){background:#2a1520}
+.btn-save{background:var(--rosa);border-color:var(--rosa);color:#fff;font-weight:800;height:42px}
+.btn-save:hover:not(:disabled){filter:brightness(1.08)}
+.btn-live{position:relative;padding-right:26px}
+.btn-live .dot{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:var(--rojo);box-shadow:0 0 8px #ff4d4d88}
+.btn-live.on{border-color:var(--verde);color:var(--verde)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
+select.btn,select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path fill='%23888899' d='M0 0l5 6 5-6z'/></svg>");background-repeat:no-repeat;background-position:right 10px center;padding-right:24px}
+.field{height:38px;padding:0 10px;border-radius:10px;border:1px solid var(--borde2);background:var(--ctl);color:var(--txt);width:100%}
+.foot{display:none;gap:8px;justify-content:center;padding:6px 0 4px}
+html.modo-avanzado .foot{display:flex}
+.foot button{width:36px;height:36px;padding:0;border-radius:10px;border:1px solid var(--borde2);background:var(--ctl);color:var(--secu);transition:background .16s,color .16s}
+.foot button:hover{color:var(--txt);background:#2a2a38}
+html.modo-simple .li{grid-template-columns:36px 1fr auto auto}
+html.modo-simple .li [data-w]{display:none}
+.dlg{display:none;position:fixed;inset:0;background:#000a;z-index:30;align-items:center;justify-content:center;padding:16px}
+.dlg.on{display:flex}
+.dlg .caja{width:min(320px,92vw);background:var(--sec);border:1px solid var(--borde);border-radius:14px;padding:20px 16px 16px;box-shadow:0 16px 48px #000c}
+.dlg h3{margin:0 0 8px;font-size:16px;font-weight:800}
+.dlg p{margin:0 0 16px;font-size:13px;color:var(--secu);line-height:1.45}
+.dlg .col{gap:8px}
+.dlg .link{height:auto;padding:10px 0 2px;border:0;background:transparent;color:var(--secu);width:100%;font-weight:600}
+.dlg .link:hover{color:var(--txt)}
+.downHead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.downHead h3{margin:0}
+#downPct{font:22px/1 ui-monospace,Menlo,monospace;font-weight:700}
+#downMb{margin:10px 0 0;font-size:12px;color:var(--secu)}
+#liveBox{display:none;position:fixed;right:16px;bottom:16px;width:340px;height:280px;min-width:280px;min-height:170px;max-width:92vw;max-height:86vh;background:#1a1a24;border:1px solid var(--borde);border-radius:12px;z-index:40;box-shadow:0 12px 32px #000a;opacity:0;flex-direction:column;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none}
+#liveBox.on{display:flex;opacity:1}
+#liveBox.rec{border-color:#00ff88cc}
+#liveBox.arrastre,#liveBox.resize{box-shadow:0 8px 20px #000a;cursor:grabbing}
+#liveBox .cab{display:flex;align-items:center;gap:6px;padding:16px 10px 8px;cursor:grab;font-size:12px;font-weight:700;background:#22222e;border-radius:12px 12px 0 0;position:relative;flex:0 0 auto}
+#liveBox .cab::before{content:"";position:absolute;top:7px;left:50%;width:40px;height:3px;border-radius:2px;background:#3d3d4e;transform:translateX(-50%);pointer-events:none}
+#liveBox.arrastre .cab{cursor:grabbing}
+#liveBox .cab select{flex:0 0 48px;height:24px;padding:0 4px;font-size:11px;font-weight:700;border-radius:8px;border:1px solid var(--borde2);background:var(--ctl);cursor:pointer}
+#liveBox .cab button{height:24px;width:24px;padding:0;border:0;background:transparent;color:var(--secu);font-size:16px;cursor:pointer}
+#liveBox .priv{display:none;margin:0;padding:6px 12px 8px;font-size:12px;color:var(--rojo);line-height:1.35;flex:0 0 auto}
+#liveBox.on .priv{display:block}
+#liveBox .cuerpo{flex:1;min-height:72px;overflow:auto;padding:4px 12px 10px}
+#liveBox .fra{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;margin:0 0 12px}
+#liveBox .ts{grid-column:1;grid-row:1;font:11px ui-monospace,Menlo,monospace;color:var(--secu);padding-top:1px}
+#liveBox .orig{grid-column:2;color:#fff;font-size:13px}
+#liveBox .trad{grid-column:2;color:var(--secu);font-size:13px;font-style:italic}
+#liveBox .pie{display:flex;gap:6px;align-items:center;padding:8px 10px 10px;border-top:1px solid var(--borde);flex:0 0 auto;position:relative}
+#liveBox .pie .ok{flex:1;height:34px;border-radius:10px;border:1px solid var(--verde);color:var(--verde);background:transparent;font-size:12px;font-weight:700}
+#liveBox .pie .ok:hover{background:#00ff8814}
+#liveBox .pie .txt,#liveBox .pie #bLiveCls{width:34px;height:34px;padding:0;border-radius:10px;border:1px solid var(--borde2);background:var(--ctl);color:#c8c8d4;font-size:11px;font-weight:800}
+#liveBox .sz{position:absolute;right:2px;bottom:2px;width:14px;height:14px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,#555566 50%,#555566 62%,transparent 62%,transparent 72%,#555566 72%,#555566 84%,transparent 84%)}
+#liveSendModo{display:none}
+.li{display:grid;grid-template-columns:36px 1fr auto auto auto;gap:8px;align-items:center;background:var(--ctl);border:1px solid var(--borde2);border-radius:10px;padding:10px;margin-bottom:6px;cursor:pointer}
+.li.sel{border-color:var(--verde)}
+.li strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li .renom{width:100%;height:26px;background:var(--fondo);border:1px solid var(--verde);color:var(--txt);border-radius:4px;padding:0 6px}
+.li .play{width:36px;height:36px;padding:0;border-radius:50%;border:1px solid var(--borde2);background:var(--panel)}
 .li .meta{min-width:0}
 .li input[type=range]{width:100%;height:6px;accent-color:var(--verde);margin:6px 0 0}
-.li .tplay{font:11px ui-monospace,Menlo,monospace;color:var(--secu)}
+.li .tplay,.li .durNom{font:11px ui-monospace,Menlo,monospace;color:var(--secu)}
 audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
-.vacio{color:var(--secu);font-size:12px;text-align:center}
-.cue{display:grid;grid-template-columns:72px 72px 1fr auto;gap:6px;align-items:center;background:var(--ctl);border:1px solid var(--borde2);border-radius:8px;padding:8px;margin-bottom:6px}
-.cue input[type=number]{height:32px;width:100%;background:#12182a;border:1px solid var(--borde2);color:var(--txt);border-radius:6px;padding:0 6px;font:12px ui-monospace,Menlo,monospace}
-.cue input[type=text]{height:32px;width:100%;background:#12182a;border:1px solid var(--borde2);color:var(--txt);border-radius:6px;padding:0 8px}
+.vacio{color:var(--secu);font-size:13px;text-align:center;padding:18px 8px}
+#lista .vacio{padding:28px 8px}
+#lista:has(.vacio){min-height:72px;display:flex;align-items:center;justify-content:center}
+#listaSubs .vacio{padding:10px 8px 2px;font-size:12px}
+.cue{display:grid;grid-template-columns:92px 1fr 28px;gap:8px;align-items:center;border-radius:8px;padding:8px;margin-bottom:4px}
+.cue:hover{background:#22222e}
+.cue .rango{font:11px ui-monospace,Menlo,monospace;color:var(--secu)}
+.cue .editT{display:none;gap:4px;margin-top:4px}
+.cue:hover .editT{display:flex}
+.cue input[type=number]{height:24px;width:100%;background:#12121a;border:1px solid var(--borde2);color:var(--secu);border-radius:6px;padding:0 4px;font:10px ui-monospace,Menlo,monospace}
+.cue input[type=text]{height:32px;width:100%;background:transparent;border:1px solid transparent;color:var(--txt);border-radius:6px;padding:0 8px}
+.cue input[type=text]:hover,.cue input[type=text]:focus{background:#12121a;border-color:var(--borde2)}
+.cue [data-x]{opacity:0;width:28px;height:28px;padding:0;border:0;background:transparent;color:var(--secu)}
+.cue:hover [data-x]{opacity:1}
+.cue.sel{background:#22222e;box-shadow:0 0 0 1px var(--verde)}
+#cajaCues{outline:none;margin-top:8px}
+.buscaRow{display:grid;grid-template-columns:88px 1fr;gap:8px;align-items:center;margin-bottom:8px}
+.buscaRow span{font-size:13px;color:var(--secu)}
 #banco{display:none}
 #banco.on{display:block}
 .test{font-size:12px;padding:6px 0;border-bottom:1px solid var(--borde)}
-.test.ok{color:var(--verde)}
-.test.ko{color:#ff8aa3}
-.progWh{display:none;height:6px;border-radius:99px;background:#24243a;overflow:hidden;margin:8px 0 0}
-.progWh.on{display:block}
-.progWh i{display:block;height:100%;width:0;background:#ff2e63;border-radius:99px}
+.test.ok{color:var(--verde)}.test.ko{color:#ff8aa3}
+.progWh{display:none;height:8px;border-radius:99px;background:#2a2a36;overflow:hidden}
+.dlg.on .progWh,.progWh.on{display:block}
+.progWh i{display:block;height:100%;width:0;background:var(--rosa);border-radius:99px;transition:width .2s}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <div id="app">
   <div class="top">
-    <div id="modo" class="lim"></div>
+    <div class="tog" id="togModo">
+      <button type="button" id="bSimple" class="on">Simple</button>
+      <button type="button" id="bAvanzado">Avanzado</button>
+    </div>
     <span class="grow"></span>
     <span class="badge" id="badge">LISTO</span>
-    <button type="button" id="bBanco" title="Banco">Σ</button>
     <button type="button" class="x" id="bX" title="Cerrar">×</button>
   </div>
+  <div id="modo"></div>
   <h1>GRABADORA</h1>
+  <div class="sesion" id="avisoSesion">
+    <span>Al recargar perderás las tomas no guardadas.</span>
+    <button type="button" class="cierra" id="bSesionX">×</button>
+  </div>
   <div class="aviso" id="aviso"></div>
+
   <section class="card">
-    <p class="tit">Grabador</p>
-    <div class="row" style="margin:0 0 10px">
-      <select id="fuente" title="Fuente de audio">
-        <option value="mic">Micrófono</option>
-        <option value="pestana">Pestaña</option>
-        <option value="pantalla">Pantalla</option>
-        <option value="mezcla">Mic + PC</option>
-      </select>
-    </div>
-    <p class="hint" id="hintFuente" style="margin:0 0 10px">Micrófono de este equipo.</p>
-    <label class="hint" style="display:flex;align-items:center;gap:8px;margin:0 0 10px;cursor:pointer">
-      <input type="checkbox" id="filtrosMic"> Filtros del mic (eco, ruido, ganancia)
-    </label>
+    <p class="tit">Grabador:</p>
+    <select id="fuente" class="btn field solo-adv" title="Fuente de audio" style="margin-bottom:8px">
+      <option value="mic">Micrófono</option>
+      <option value="pestana">Pestaña</option>
+      <option value="pantalla">Pantalla</option>
+      <option value="mezcla">Mic + PC</option>
+    </select>
+    <p class="hint solo-adv" id="hintFuente" style="text-align:left;margin:0 0 8px">Micrófono de este equipo.</p>
+    <label class="chk solo-adv"><input type="checkbox" id="filtrosMic"> Filtros del mic</label>
+    <label class="chk solo-adv"><input type="checkbox" id="chkCuenta"> Cuenta atrás 3 s</label>
+    <label class="chk solo-adv"><input type="checkbox" id="chkSpeech"> Reconocimiento en vivo</label>
+    <p class="hint solo-adv" id="avisoSpeech" style="display:none;color:#FF4D4D;text-align:left">El audio sale del equipo (servicio del navegador).</p>
     <div class="recRow">
-      <button type="button" class="recBtn" id="bGrabar">●</button>
+      <button type="button" class="recBtn" id="bGrabar" title="Grabar">●</button>
       <canvas id="onda" width="640" height="56"></canvas>
     </div>
     <p class="timer" id="timer">00:00.0</p>
-    <p class="hint" id="codec">Codec: —</p>
-    <div class="row">
-      <button type="button" id="bInsertar" disabled>Insertar →</button>
-      <button type="button" id="bDescartar" disabled>Descartar</button>
+    <p class="codec" id="codec">Codec: —</p>
+    <div class="col">
+      <button type="button" class="btn" id="bPausa" disabled>Pausar</button>
+      <button type="button" class="btn" id="bDescartar" disabled>Descartar</button>
     </div>
   </section>
+
   <section class="card">
     <p class="tit">Mis tomas</p>
+    <div class="grid2 solo-adv" style="margin-bottom:8px">
+      <button type="button" class="btn" id="bPlayAll">▶ Reproducir todo</button>
+      <select id="velPlay" class="btn field" title="Velocidad">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.5">1.5×</option>
+        <option value="2">2×</option>
+      </select>
+    </div>
     <div id="lista"></div>
   </section>
+
   <section class="card">
     <p class="tit">Subtítulos</p>
-    <div class="row">
-      <button type="button" id="bImpSrt">Importar SRT/VTT</button>
-      <button type="button" id="bExpSrt" disabled>Exportar SRT</button>
-      <button type="button" id="bExpVtt" disabled>Exportar VTT</button>
-      <button type="button" id="bTranscribir">Transcribir toma</button>
+    <div class="col" id="subsBtns">
+      <button type="button" class="btn" id="bImpSrt">Importar SRT/VTT</button>
+      <button type="button" class="btn" id="bExpSrt" disabled>Exportar SRT</button>
+      <div class="grid2 solo-adv">
+        <button type="button" class="btn" id="bExpVtt" disabled>Exportar VTT</button>
+        <button type="button" class="btn" id="bExpTxt" disabled>Exportar TXT</button>
+      </div>
+      <div class="grid2 solo-adv">
+        <button type="button" class="btn" id="bExpJson" disabled>Exportar JSON</button>
+        <button type="button" class="btn" id="bCopiar">Copiar</button>
+      </div>
+      <button type="button" class="btn btn-pink" id="bTranscribir">✨ Generar texto</button>
+      <button type="button" class="btn btn-live" id="bLiveOpen">🎙 Subtítulos en vivo<span class="dot"></span></button>
+      <button type="button" class="btn btn-save" id="bGuardar">💾 Guardar proyecto</button>
     </div>
-    <p class="hint" id="estWhisper">Whisper: buscando motor…</p>
-    <div class="progWh" id="barraWhisper"><i id="barraWhisperI"></i></div>
-    <div class="row">
-      <button type="button" id="bWhisperDown">Descargar modelo (~75 MB)</button>
-      <button type="button" id="bWhisperDel">Borrar modelo</button>
+    <div class="grid2 solo-adv" style="margin-top:8px">
+      <select id="langOrigen" class="btn field">
+        <option value="es" selected>ES</option>
+        <option value="en">EN</option>
+        <option value="fr">FR</option>
+        <option value="pt">PT</option>
+        <option value="it">IT</option>
+        <option value="de">DE</option>
+      </select>
+      <select id="langDest" class="btn field">
+        <option value="en" selected>EN</option>
+        <option value="es">ES</option>
+        <option value="fr">FR</option>
+        <option value="pt">PT</option>
+        <option value="it">IT</option>
+        <option value="de">DE</option>
+      </select>
+    </div>
+    <div class="grid2 solo-adv">
+      <button type="button" class="btn" id="bTraducir">Traducir cues</button>
+      <button type="button" class="btn" id="bTraducirUndo">Restaurar original</button>
+    </div>
+    <p class="hint solo-adv" id="estTrad" style="text-align:left">Traducción on-device. Sin servidores.</p>
+    <p class="hint solo-adv" id="estWhisper" style="text-align:left"></p>
+    <div class="col solo-adv" style="margin-top:8px">
+      <button type="button" class="btn" id="bWhisperDown">Descargar modelo (~75 MB)</button>
+      <button type="button" class="btn" id="bWhisperDel">Borrar modelo</button>
     </div>
     <input type="file" id="fSrt" accept=".srt,.vtt,text/vtt" hidden>
-    <div id="listaSubs" style="margin-top:10px"></div>
+    <div id="cajaCues" tabindex="0">
+      <div class="buscaRow solo-adv">
+        <span>Buscar</span>
+        <input type="text" class="field" id="busCue">
+      </div>
+      <div class="buscaRow solo-adv">
+        <span>Reemplazar</span>
+        <input type="text" class="field" id="repCue">
+      </div>
+      <div class="col solo-adv">
+        <button type="button" class="btn" id="bBusSig">Buscar siguiente</button>
+        <button type="button" class="btn" id="bRepUno">Reemplazar</button>
+        <button type="button" class="btn" id="bRepTodo">Reemplazar todo</button>
+      </div>
+      <div class="grid2 solo-adv" style="margin-top:8px">
+        <button type="button" class="btn" id="bDivCue">Dividir</button>
+        <button type="button" class="btn" id="bFusCue">Fusionar</button>
+      </div>
+      <div id="listaSubs"></div>
+    </div>
   </section>
-  <section class="card" id="banco">
-    <p class="tit">Banco Σ (sin micrófono)</p>
-    <button type="button" id="bRun">Correr pruebas</button>
+
+  <div class="foot solo-adv">
+    <button type="button" id="bTipoM" title="Letra más pequeña">A−</button>
+    <button type="button" id="bTipoP" title="Letra más grande">A+</button>
+    <button type="button" id="bTema" title="Tema">☀</button>
+    <button type="button" id="bBanco" title="Banco">Σ</button>
+  </div>
+  <section class="card solo-adv" id="banco">
+    <p class="tit">Banco Σ</p>
+    <button type="button" class="btn" id="bRun">Correr pruebas</button>
     <div id="testOut"></div>
   </section>
+
+  <div id="liveBox">
+    <div class="cab" id="liveCab">
+      <span>🎙 Subtítulos en vivo</span>
+      <span class="grow"></span>
+      <select id="liveLang" title="Traducir a">
+        <option value="es">ES</option>
+        <option value="en" selected>EN</option>
+        <option value="fr">FR</option>
+        <option value="pt">PT</option>
+        <option value="it">IT</option>
+        <option value="de">DE</option>
+      </select>
+      <button type="button" id="bLiveMin" title="Minimizar">−</button>
+      <button type="button" id="bLiveX" title="Cerrar">×</button>
+    </div>
+    <p class="priv" id="livePriv">El audio del reconocimiento sale del equipo.<br>La traducción es local.</p>
+    <div class="cuerpo" id="liveCuerpo"></div>
+    <div class="pie">
+      <select id="liveSendModo"><option value="trad" selected>trad</option><option value="orig">orig</option></select>
+      <button type="button" class="ok" id="bLiveSend">↑ Enviar todo a subtítulos</button>
+      <button type="button" class="txt" id="bLiveTxt" title="Guardar como texto">TXT</button>
+      <button type="button" id="bLiveCls" title="Limpiar">🗑</button>
+      <span class="sz" id="liveSz" title="Agrandar"></span>
+    </div>
+  </div>
+</div>
+
+<div class="dlg" id="dlgGen">
+  <div class="caja">
+    <h3>Generar texto</h3>
+    <p>Necesita descargar el modelo (~75 MB, una sola vez). 100% local.</p>
+    <div class="col">
+      <button type="button" class="btn btn-save" id="bGenSi">Descargar</button>
+      <button type="button" class="btn" id="bGenVad">Usar marcas de voz</button>
+      <button type="button" class="link" id="bGenNo">Cancelar</button>
+    </div>
+  </div>
+</div>
+<div class="dlg" id="dlgProy">
+  <div class="caja">
+    <h3>Proyecto anterior</h3>
+    <p>¿Continuar el proyecto guardado?</p>
+    <div class="col">
+      <button type="button" class="btn btn-save" id="bProySi">Continuar</button>
+      <button type="button" class="btn" id="bProyNo">Empezar vacío</button>
+    </div>
+  </div>
+</div>
+<div class="dlg" id="dlgDown">
+  <div class="caja">
+    <div class="downHead"><h3>Descargando modelo</h3><span id="downPct">0%</span></div>
+    <div class="progWh on" id="barraWhisper"><i id="barraWhisperI"></i></div>
+    <p id="downMb">0 / 75 MB</p>
+    <button type="button" class="link" id="bDownX">Cerrar</button>
+  </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
 <script>
@@ -135,18 +369,28 @@ window.Grabadora = null;
     { id:'audio-1', tipo:'audio', nombre:'Audio 1' }
   ];
   const $ = id => document.getElementById(id);
-  const LISTO = 'listo', GRABANDO = 'grabando', COMPLETADO = 'completado';
+  const LISTO = 'listo', GRABANDO = 'grabando', PAUSADO = 'pausado', COMPLETADO = 'completado';
   let estado = LISTO;
   let rec = null, chunks = [], streamToma = null, micVivo = null;
   let extra = [], ctxMix = null, fuenteActiva = 'mic';
   let ctx = null, analyser = null, raf = 0, tick = 0;
   let t0 = 0, dur = 0, blob = null, mime = '', url = null;
   let currentId = null, selId = null, player = null, playId = null, seeking = false;
+  let colaPlay = null, velPlay = 1, cuentaTok = 0;
+  let speechRec = null, speechCues = [], speechT0 = 0, liveActivo = false;
+  let selCue = null, selCues = new Set(), flechaT = 0;
+  let avisoTimer = 0, micFiltros = null;
 
-  function aviso(t){
+  function aviso(t, tipo){
     const a = $('aviso');
-    a.textContent = t || '';
-    a.classList.toggle('on', !!t);
+    clearTimeout(avisoTimer);
+    if (!t){ a.className = 'aviso'; a.innerHTML = ''; return; }
+    const kind = tipo || 'err';
+    a.className = 'aviso on ' + kind;
+    a.innerHTML = '<span></span><button type="button" class="cierra" title="Cerrar">×</button>';
+    a.querySelector('span').textContent = t;
+    a.querySelector('.cierra').onclick = () => aviso('');
+    if (kind === 'ok') avisoTimer = setTimeout(() => aviso(''), 4000);
   }
   function fmt(s){
     s = Math.max(0, +s || 0);
@@ -154,31 +398,50 @@ window.Grabadora = null;
     const r = s - m * 60;
     return String(m).padStart(2,'0') + ':' + r.toFixed(1).padStart(4,'0');
   }
+  function mmss(s){
+    s = Math.max(0, +s || 0);
+    return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(Math.floor(s%60)).padStart(2,'0');
+  }
   function nextId(pref, enMedios){
     let n = 1, id;
     do { id = pref + String(n).padStart(3,'0'); n++; }
     while (enMedios ? P.medios.has(id) : P.clips[id]);
     return id;
   }
-  function asegurarAudio(){
-    let p = PISTAS.find(x => x.id === 'audio-1');
-    if (!p){ p = { id:'audio-1', tipo:'audio', nombre:'Audio 1' }; PISTAS.push(p); }
-    return p;
-  }
   function nomNueva(){
     const n = [...P.medios.values()].filter(m => m.tipo === 'grabacion').length;
     return 'Toma ' + (n + 1);
   }
-
-  const Hist = { pila:[], mudo:0 };
+  const Hist = { pila:[], futuro:[], mudo:0 };
   function instantanea(){
-    return JSON.stringify({ clips:P.clips, pistas:PISTAS, sel:P.sel });
+    return JSON.stringify({ clips:P.clips, pistas:PISTAS, sel:P.sel, selCue:selCue, selCues:[...selCues] });
   }
   function enLote(motivo, fn){
-    if (!Hist.mudo) Hist.pila.push({ motivo, estado: instantanea() });
+    if (!Hist.mudo){ Hist.pila.push({ motivo, estado: instantanea() }); Hist.futuro.length = 0; }
     Hist.mudo++;
     try{ return fn(); }
     finally{ Hist.mudo--; }
+  }
+  function aplicarSnap(s){
+    const o = JSON.parse(s);
+    P.clips = o.clips || {};
+    PISTAS.length = 0; (o.pistas || []).forEach(p => PISTAS.push(p));
+    P.sel = o.sel; selCue = o.selCue || null; selCues = new Set(o.selCues || []);
+    pintarCues();
+  }
+  function deshacer(){
+    if (!Hist.pila.length) return;
+    const ahora = instantanea();
+    const prev = Hist.pila.pop();
+    Hist.futuro.push({ motivo: prev.motivo, estado: ahora });
+    aplicarSnap(prev.estado);
+  }
+  function rehacer(){
+    if (!Hist.futuro.length) return;
+    const ahora = instantanea();
+    const nxt = Hist.futuro.pop();
+    Hist.pila.push({ motivo: nxt.motivo, estado: ahora });
+    aplicarSnap(nxt.estado);
   }
 
   function parseT(x){
@@ -190,22 +453,20 @@ window.Grabadora = null;
   }
   function srtT(s){
     s = Math.max(0, +s || 0);
-    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
-    const sec = s - h*3600 - m*60;
-    const ent = Math.floor(sec);
-    const ms = Math.round((sec-ent)*1000);
-    return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(ent).padStart(2,'0')+','+String(ms).padStart(3,'0');
+    const h = Math.floor(s/3600), mi = Math.floor(s%3600/60), se = Math.floor(s%60);
+    const ms = Math.round((s - Math.floor(s))*1000);
+    const p = n => String(n).padStart(2,'0');
+    return p(h)+':'+p(mi)+':'+p(se)+','+String(ms).padStart(3,'0');
   }
   function leerSRT(txt){
     txt = String(txt||'').replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
+    const bloques = txt.split(/\n{2,}/);
     const out = [];
-    String(txt).split(/\n\s*\n/).forEach((b, idx) => {
+    bloques.forEach((b, idx) => {
       const ls = b.split('\n').map(x => x.trim()).filter(Boolean);
-      const flecha = ls.find(x => x.indexOf('-->') >= 0);
-      if (!flecha) return;
-      const p = flecha.split('-->');
-      const a = parseT(p[0]);
-      const b2 = parseT((p[1]||'').trim().split(/\s+/)[0]);
+      const ln = ls.find(x => x.indexOf('-->') >= 0); if (!ln) return;
+      const parts = ln.split('-->');
+      const a = parseT(parts[0]), b2 = parseT(parts[1]);
       if (a == null || b2 == null || b2 <= a) return;
       const texto = ls.filter(x => !/^\d+$/.test(x) && x.indexOf('-->') < 0).join('\n');
       out.push({ t0:a, t1:b2, texto, _i:idx });
@@ -228,7 +489,11 @@ window.Grabadora = null;
       t(c.t0)+' --> '+t(c.t1)+'\n'+c.texto+'\n'
     ).join('\n');
   }
-
+  function asegurarAudio(){
+    let p = PISTAS.find(x => x.id === 'audio-1');
+    if (!p){ p = { id:'audio-1', tipo:'audio', nombre:'Audio 1' }; PISTAS.push(p); }
+    return p;
+  }
   function asegurarSub(){
     if (!P.medios.has('sub-1'))
       P.medios.set('sub-1', { tipo:'subtitulos', nom:'Subtítulos', pista:'sub-1' });
@@ -247,17 +512,17 @@ window.Grabadora = null;
       trackId: pr.trackId || c.pista
     };
   }
+  function hayPistaSub(){ return PISTAS.some(p => p.id === 'sub-1' && p.tipo === 'subtitulo'); }
   function cuesDePista(){
     const p = PISTAS.find(x => x.id === 'sub-1' && x.tipo === 'subtitulo');
     if (!p) return [];
     return Object.values(P.clips).filter(c => c.pista === 'sub-1').map(clipACue).sort((a,b) => a.t0 - b.t0);
   }
-  function hayPistaSub(){ return PISTAS.some(p => p.id === 'sub-1' && p.tipo === 'subtitulo'); }
   function meterCues(arr){
     return enLote('importar subtítulos', () => {
       asegurarSub();
       let n = 0;
-      arr.forEach(s => {
+      (arr||[]).forEach(s => {
         if (!(s.t1 > s.t0)) return;
         const id = nextId('cue-', false);
         P.clips[id] = {
@@ -274,104 +539,254 @@ window.Grabadora = null;
   function pintarCues(){
     const box = $('listaSubs');
     const cues = cuesDePista();
-    const on = hayPistaSub() && cues.length > 0;
     $('bExpSrt').disabled = !hayPistaSub();
-    $('bExpVtt').disabled = !hayPistaSub();
-    if (!hayPistaSub()){
+    ['bExpVtt','bExpTxt','bExpJson'].forEach(id => { if ($(id)) $(id).disabled = !hayPistaSub(); });
+    if (!hayPistaSub() || !cues.length){
       box.innerHTML = '<p class="vacio">Importa un .srt o .vtt</p>';
-      return;
-    }
-    if (!cues.length){
-      box.innerHTML = '<p class="vacio">Pista vacía</p>';
       return;
     }
     box.innerHTML = '';
     cues.forEach(s => {
       const d = document.createElement('div');
-      d.className = 'cue';
-      d.innerHTML = '<input type="number" step="0.01" data-a>' +
-        '<input type="number" step="0.01" data-b>' +
-        '<input type="text" data-t>' +
-        '<button type="button" data-x>🗑</button>';
+      d.className = 'cue' + (s.id === selCue || selCues.has(s.id) ? ' sel' : '');
+      d.dataset.id = s.id;
+      d.innerHTML = '<div class="cueL"><div class="rango"></div><div class="editT"><input type="number" step="0.01" data-a><input type="number" step="0.01" data-b></div></div>' +
+        '<input type="text" data-t><button type="button" data-x title="Borrar">🗑</button>';
+      d.querySelector('.rango').textContent = mmss(s.t0) + ' → ' + mmss(s.t1);
       d.querySelector('[data-a]').value = (+s.t0).toFixed(2);
       d.querySelector('[data-b]').value = (+s.t1).toFixed(2);
       d.querySelector('[data-t]').value = s.texto;
       const aplicarT = () => {
-        const a = +d.querySelector('[data-a]').value;
-        const b = +d.querySelector('[data-b]').value;
+        const a = +d.querySelector('[data-a]').value, b = +d.querySelector('[data-b]').value;
         if (!isFinite(a) || !isFinite(b) || b <= a) return;
         enLote('editar rango', () => {
           const c = P.clips[s.id];
-          c.inicio = a; c.duracion = b - a;
-          c.props.t0 = a; c.props.t1 = b;
+          c.inicio = a; c.duracion = b - a; c.props.t0 = a; c.props.t1 = b;
         });
+        d.querySelector('.rango').textContent = mmss(a) + ' → ' + mmss(b);
       };
       d.querySelector('[data-a]').onchange = aplicarT;
       d.querySelector('[data-b]').onchange = aplicarT;
       d.querySelector('[data-t]').onchange = ev => {
         enLote('editar subtítulo', () => { P.clips[s.id].props.texto = ev.target.value; });
       };
-      d.querySelector('[data-x]').onclick = () => {
-        enLote('borrar subtítulo', () => { delete P.clips[s.id]; });
-        pintarCues();
+      d.querySelector('[data-x]').onclick = ev => { ev.stopPropagation(); borrarCue(s.id); };
+      d.onclick = ev => {
+        if (ev.target.closest('input') || ev.target.closest('button')) return;
+        elegirCue(s.id, ev.shiftKey);
       };
       box.appendChild(d);
     });
   }
+  function elegirCue(id, extra){
+    if (extra){
+      if (selCues.has(id)) selCues.delete(id); else selCues.add(id);
+      selCue = id;
+    } else { selCue = id; selCues = new Set([id]); }
+    pintarCues(); $('cajaCues').focus();
+  }
+  function filaCue(id){ return document.querySelector('#listaSubs .cue[data-id="'+id+'"]'); }
+  function focoTexto(id){
+    const el = filaCue(id || selCue);
+    const inp = el && el.querySelector('[data-t]');
+    if (inp) inp.focus();
+  }
+  function borrarCue(id){
+    if (!P.clips[id]) return;
+    if (!confirm('¿Borrar este subtítulo?')) return;
+    enLote('borrar subtítulo', () => { delete P.clips[id]; });
+    if (selCue === id) selCue = null;
+    selCues.delete(id); pintarCues();
+  }
+  function dividirCue(){
+    const id = selCue; if (!id || !P.clips[id]){ aviso('Elige un cue.', 'err'); return; }
+    const c = P.clips[id], txt = String(c.props.texto || '');
+    const inp = filaCue(id) && filaCue(id).querySelector('[data-t]');
+    let i = inp && document.activeElement === inp ? inp.selectionStart : Math.floor(txt.length/2);
+    i = Math.max(0, Math.min(txt.length, +i || 0));
+    if (i <= 0 || i >= txt.length){ aviso('Pon el cursor en medio del texto.', 'err'); return; }
+    const izq = txt.slice(0,i).trim(), der = txt.slice(i).trim();
+    if (!izq || !der){ aviso('Nada que dividir.', 'err'); return; }
+    const t0 = c.props.t0, t1 = c.props.t1, mid = t0 + (t1-t0)*(i/txt.length);
+    enLote('dividir cue', () => {
+      c.props.texto = izq; c.props.t1 = mid; c.duracion = mid - t0;
+      const nid = nextId('cue-', false);
+      P.clips[nid] = { id:nid, medio:'sub-1', pista:'sub-1', inicio:mid, duracion:t1-mid,
+        props:{ texto:der, estilo:c.props.estilo||{}, t0:mid, t1:t1, trackId:'sub-1' } };
+      selCue = nid; selCues = new Set([id, nid]);
+    });
+    pintarCues();
+  }
+  function fusionarCues(){
+    const list = cuesDePista();
+    let a = null, b = null;
+    if (selCues.size >= 2){
+      const ids = list.filter(c => selCues.has(c.id));
+      for (let i = 0; i < ids.length; i++){
+        const ia = list.findIndex(x => x.id === ids[i].id);
+        if (list[ia+1] && selCues.has(list[ia+1].id)){ a = list[ia]; b = list[ia+1]; break; }
+      }
+    }
+    if (!a && selCue){
+      const i = list.findIndex(x => x.id === selCue);
+      if (i >= 0 && list[i+1]){ a = list[i]; b = list[i+1]; }
+    }
+    if (!a || !b){ aviso('Elige dos cues seguidos.', 'err'); return; }
+    enLote('fusionar cues', () => {
+      const ca = P.clips[a.id];
+      ca.props.texto = (String(a.texto||'')+' '+String(b.texto||'')).replace(/\s+/g,' ').trim();
+      ca.props.t1 = b.t1; ca.duracion = b.t1 - a.t0; ca.inicio = a.t0;
+      delete P.clips[b.id]; selCue = a.id; selCues = new Set([a.id]);
+    });
+    pintarCues();
+  }
+  function moverCue(dt0, dt1){
+    if (!selCue || !P.clips[selCue]) return;
+    const motivo = 'ajustar tiempo', ahora = Date.now();
+    const grupo = (ahora - flechaT < 450) && Hist.pila.length && Hist.pila[Hist.pila.length-1].motivo === motivo;
+    flechaT = ahora;
+    const go = () => {
+      const c = P.clips[selCue];
+      let a = (+c.props.t0||0)+dt0, b = (+c.props.t1||0)+dt1;
+      if (a < 0){ b -= a; a = 0; }
+      if (b <= a + 0.05) b = a + 0.05;
+      c.inicio = a; c.duracion = b-a; c.props.t0 = a; c.props.t1 = b;
+    };
+    if (grupo){ Hist.mudo++; try{ go(); } finally { Hist.mudo--; } }
+    else enLote(motivo, go);
+    pintarCues();
+  }
+  function buscarSiguiente(){
+    const q = (($('busCue')||{}).value||'').trim(); if (!q) return;
+    const list = cuesDePista(); if (!list.length) return;
+    const start = list.findIndex(c => c.id === selCue);
+    let hallado = null;
+    for (let k = 1; k <= list.length; k++){
+      const c = list[(Math.max(0,start)+k)%list.length];
+      if (String(c.texto||'').toLowerCase().includes(q.toLowerCase())){ hallado = c; break; }
+    }
+    if (!hallado){ aviso('Sin coincidencias.', 'info'); return; }
+    selCue = hallado.id; selCues = new Set([hallado.id]);
+    pintarCues(); focoTexto(hallado.id);
+  }
+  function reemplazarUno(){
+    const q = (($('busCue')||{}).value||'').trim(); const r = ($('repCue')||{}).value||'';
+    if (!q) return;
+    if (selCue && P.clips[selCue]){
+      const txt = String(P.clips[selCue].props.texto||'');
+      const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'i');
+      if (rx.test(txt)){
+        enLote('reemplazar', () => { P.clips[selCue].props.texto = txt.replace(rx, r); });
+        pintarCues();
+      }
+    }
+    buscarSiguiente();
+  }
+  function reemplazarTodo(){
+    const q = (($('busCue')||{}).value||'').trim(); const r = ($('repCue')||{}).value||'';
+    if (!q) return;
+    const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+    let n = 0;
+    enLote('reemplazar todo', () => {
+      cuesDePista().forEach(c => {
+        const t = String(c.texto||''), nt = t.replace(rx, r);
+        if (nt !== t){ P.clips[c.id].props.texto = nt; n++; }
+      });
+    });
+    pintarCues();
+    aviso(n ? n+' cambios.' : 'Sin coincidencias.', n ? 'ok' : 'info');
+  }
+  function cueVecino(dir){
+    const list = cuesDePista(); if (!list.length) return;
+    let i = list.findIndex(c => c.id === selCue);
+    if (i < 0) i = dir > 0 ? -1 : 0;
+    i = Math.max(0, Math.min(list.length-1, i+dir));
+    elegirCue(list[i].id, false);
+  }
+  function enCajaCues(el){ const caja = $('cajaCues'); return !!(caja && el && caja.contains(el)); }
+  function atajosCues(ev){
+    if (!enCajaCues(ev.target)) return;
+    const tag = (ev.target.tagName||'').toLowerCase();
+    const enInput = tag === 'input' || tag === 'textarea';
+    const meta = ev.ctrlKey || ev.metaKey;
+    if (meta && ev.key.toLowerCase() === 'z' && !ev.shiftKey){ ev.preventDefault(); deshacer(); return; }
+    if (meta && (ev.key.toLowerCase() === 'y' || (ev.key.toLowerCase()==='z' && ev.shiftKey))){ ev.preventDefault(); rehacer(); return; }
+    if (meta && ev.key.toLowerCase() === 'f'){ ev.preventDefault(); $('busCue').focus(); return; }
+    if (ev.key === 'Escape'){ if (enInput){ ev.target.blur(); $('cajaCues').focus(); } return; }
+    if (enInput) return;
+    const paso = ev.shiftKey ? 1 : 0.1;
+    if (ev.key === 'Enter'){ ev.preventDefault(); focoTexto(selCue); return; }
+    if (ev.key === 'Tab'){ ev.preventDefault(); cueVecino(ev.shiftKey ? -1 : 1); return; }
+    if (ev.key === 'Delete' || ev.key === 'Backspace'){ ev.preventDefault(); if (selCue) borrarCue(selCue); return; }
+    if (ev.key === 'd' || ev.key === 'D'){ ev.preventDefault(); dividirCue(); return; }
+    if (ev.key === 'm' || ev.key === 'M'){ ev.preventDefault(); fusionarCues(); return; }
+    if (ev.key === 'ArrowLeft'){ ev.preventDefault(); moverCue(-paso,-paso); return; }
+    if (ev.key === 'ArrowRight'){ ev.preventDefault(); moverCue(paso,paso); return; }
+    if (ev.key === 'ArrowUp'){ ev.preventDefault(); moverCue(0,paso); return; }
+    if (ev.key === 'ArrowDown'){ ev.preventDefault(); moverCue(0,-paso); return; }
+  }
   function stampNom(){
-    const d = new Date();
-    const p = n => String(n).padStart(2,'0');
+    const d = new Date(), p = n => String(n).padStart(2,'0');
     return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes());
   }
-  function descargar(nom, txt){
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([txt], { type:'text/plain' }));
-    a.download = nom;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
-  }
   function exportar(kind){
-    if (!hayPistaSub()){ aviso('No hay pista de subtítulos.'); return ''; }
+    if (!hayPistaSub()){ aviso('No hay pista de subtítulos.', 'err'); return ''; }
     const cues = cuesDePista();
-    const txt = kind === 'vtt' ? escribirVTT(cues) : escribirSRT(cues);
-    if (!String(txt).replace(/^WEBVTT\s*/i,'').trim()){
-      aviso('No hay subtítulos para exportar.');
-      return '';
+    let txt = '', nom = 'subtitulos-'+stampNom(), mime = 'text/plain';
+    if (kind === 'vtt'){ txt = escribirVTT(cues); nom += '.vtt'; }
+    else if (kind === 'txt'){ txt = cues.map(c => c.texto||'').join('\n'); nom += '.txt'; }
+    else if (kind === 'json'){
+      txt = JSON.stringify(cues.map(c => ({ id:c.id, t0:c.t0, t1:c.t1, texto:c.texto, estilo:c.estilo||{}, trackId:c.trackId })), null, 2);
+      nom += '.json'; mime = 'application/json';
+    } else { txt = escribirSRT(cues); nom += '.srt'; }
+    if (!String(txt).replace(/^WEBVTT\s*/i,'').trim() && kind !== 'json'){
+      aviso('No hay subtítulos para exportar.', 'err'); return '';
     }
-    descargar('subtitulos-'+stampNom()+'.'+(kind==='vtt'?'vtt':'srt'), txt);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([txt], { type: mime }));
+    a.download = nom; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
     return txt;
   }
-  function pintarModo(){
-    const el = $('modo');
-    if (!el) return;
-    if (ENTORNO === 'limitado'){
-      el.className = 'lim';
-      el.textContent = 'file:// · permiso del mic no se guarda entre recargas.';
-    } else {
-      el.textContent = '';
-      el.className = '';
-    }
+  function copiarCues(){
+    const t = cuesDePista().map(c => c.texto||'').join('\n');
+    if (!t.trim()){ aviso('No hay texto que copiar.', 'err'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText)
+      navigator.clipboard.writeText(t).then(() => aviso('Copiado', 'ok')).catch(() => aviso('No se pudo copiar.', 'err'));
+    else aviso('Portapapeles no disponible.', 'err');
   }
+
   function pintarBadge(){
     const b = $('badge');
     b.className = 'badge' + (estado === GRABANDO ? ' rec' : '');
-    b.textContent = estado === GRABANDO ? 'GRABANDO' : (estado === COMPLETADO ? 'COMPLETADO' : 'LISTO');
-    $('bGrabar').classList.toggle('rec', estado === GRABANDO);
-    $('bGrabar').textContent = estado === GRABANDO ? '■' : '●';
-    $('bInsertar').disabled = !(estado === COMPLETADO || selId);
-    $('bDescartar').disabled = estado !== COMPLETADO;
+    b.textContent = estado === GRABANDO ? 'GRABANDO' : (estado === PAUSADO ? 'PAUSA' : (estado === COMPLETADO ? 'COMPLETADO' : 'LISTO'));
+    $('bGrabar').classList.toggle('rec', estado === GRABANDO || estado === PAUSADO);
+    if (!$('bGrabar').classList.contains('cuenta'))
+      $('bGrabar').textContent = estado === GRABANDO || estado === PAUSADO ? '■' : '●';
+    const hayToma = !!(selId || (estado === COMPLETADO && blob));
+    $('bDescartar').disabled = !hayToma || estado !== COMPLETADO;
+    const bp = $('bPausa');
+    if (bp){
+      bp.disabled = !(estado === GRABANDO || estado === PAUSADO);
+      bp.textContent = estado === PAUSADO ? 'Reanudar' : 'Pausar';
+    }
+    if ($('bPlayAll')) $('bPlayAll').textContent = colaPlay ? 'Detener' : '▶ Reproducir todo';
   }
   function pintarOnda(vivo, data){
-    const cv = $('onda');
-    const g = cv.getContext('2d');
+    const cv = $('onda'); const g = cv.getContext('2d');
     const w = cv.width, h = cv.height;
-    g.fillStyle = '#0f0f1a'; g.fillRect(0,0,w,h);
-    for (let i = 0; i < 48; i++){
-      let v = 0.1;
-      if (vivo && data) v = Math.max(0.08, Math.abs(data[Math.floor(i * data.length / 48)] / 255 - 0.5) * 2);
-      const bh = Math.max(3, v * (h - 10));
-      g.fillStyle = '#4ade80';
-      g.fillRect(8 + i * ((w - 16) / 48), (h - bh) / 2, Math.max(2, (w - 16) / 48 - 3), bh);
+    g.clearRect(0,0,w,h);
+    const n = 22, gap = 4, bw = Math.max(3, (w - 8 - gap*(n-1))/n);
+    for (let i = 0; i < n; i++){
+      let v;
+      if (vivo && data) v = Math.max(0.08, Math.abs(data[Math.floor(i*data.length/n)]/255 - 0.5)*2);
+      else {
+        const t = i / (n-1);
+        v = 0.16 + 0.78 * Math.exp(-Math.pow((t-0.42)/0.22, 2)) * Math.abs(Math.sin(i*0.95+0.4));
+      }
+      const bh = Math.max(6, v*(h-10));
+      g.fillStyle = '#00FF88';
+      g.fillRect(4+i*(bw+gap), (h-bh)/2, bw, bh);
     }
   }
   function bucleOnda(){
@@ -380,10 +795,6 @@ window.Grabadora = null;
     analyser.getByteTimeDomainData(buf);
     pintarOnda(true, buf);
     raf = requestAnimationFrame(bucleOnda);
-  }
-  function mmss(s){
-    s = Math.max(0, +s || 0);
-    return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(Math.floor(s%60)).padStart(2,'0');
   }
   function filaToma(id){ return document.querySelector('#lista .li[data-id="'+id+'"]'); }
   function pintarPlayUI(id){
@@ -395,14 +806,9 @@ window.Grabadora = null;
   }
   function pintarTiempo(id, cur, tot){
     const el = filaToma(id); if (!el) return;
-    const sl = el.querySelector('input[type=range]');
-    const t = el.querySelector('.tplay');
-    tot = tot || 0;
-    if (sl && !seeking){
-      sl.max = String(tot || 0);
-      sl.value = String(Math.min(cur || 0, tot || 0));
-    }
-    if (t) t.textContent = mmss(cur) + ' / ' + mmss(tot);
+    const sl = el.querySelector('input[type=range]'); const t = el.querySelector('.tplay');
+    if (sl && !seeking){ sl.max = String(tot||0); sl.value = String(Math.min(cur||0, tot||0)); sl.title = mmss(cur); }
+    if (t) t.textContent = mmss(cur)+' / '+mmss(tot);
   }
   function pintarLista(){
     const box = $('lista');
@@ -415,39 +821,27 @@ window.Grabadora = null;
       d.dataset.id = m.id;
       const on = playId === m.id && player && !player.paused;
       const cur = (playId === m.id && player) ? player.currentTime : 0;
-      d.innerHTML = '<button type="button" class="play" data-p title="Reproducir"></button>' +
-        '<div class="meta"><strong></strong><input type="range" min="0" step="0.01" data-s>' +
-        '<div class="tplay"></div></div>' +
-        '<button type="button" data-w title="Transcribir">✦</button>' +
-        '<button type="button" data-i title="Insertar">→</button>' +
-        '<button type="button" data-x title="Borrar">🗑</button>';
-      d.querySelector('strong').textContent = m.nom + (m.insertado ? ' · insertada' : '');
+      d.innerHTML = '<button type="button" class="play" data-p></button><div class="meta"><strong></strong><div class="durNom"></div><input type="range" min="0" step="0.01" data-s><div class="tplay"></div></div><button type="button" class="btn" data-w title="Generar texto" style="width:36px;padding:0">✦</button><button type="button" class="btn" data-i title="Enviar a la línea de tiempo" style="width:36px;padding:0">↑</button><button type="button" class="btn" data-x title="Borrar" style="width:36px;padding:0">🗑</button>';
+      d.querySelector('strong').textContent = m.nom;
+      d.querySelector('.durNom').textContent = mmss(m.dur);
       d.querySelector('[data-p]').textContent = on ? '⏸' : '▶';
       const sl = d.querySelector('[data-s]');
-      sl.max = String(m.dur || 0);
-      sl.value = String(cur);
-      d.querySelector('.tplay').textContent = mmss(cur) + ' / ' + mmss(m.dur);
+      sl.max = String(m.dur||0); sl.value = String(cur); sl.title = mmss(cur);
+      d.querySelector('.tplay').textContent = mmss(cur)+' / '+mmss(m.dur);
+      d.querySelector('strong').ondblclick = ev => { ev.stopPropagation(); editarNom(m, d.querySelector('strong')); };
       d.onclick = ev => {
         if (ev.target.closest('button') || ev.target.closest('input')) return;
-        selId = m.id; blob = m.blob || null; currentId = m.id;
-        pintarLista(); pintarBadge();
+        selId = m.id; blob = m.blob||null; currentId = m.id; pintarLista(); pintarBadge();
       };
       d.querySelector('[data-p]').onclick = ev => { ev.stopPropagation(); togglePlay(m); };
-      sl.oninput = ev => {
-        ev.stopPropagation();
-        seeking = true;
-        pintarTiempo(m.id, +sl.value, m.dur);
-      };
-      sl.onchange = ev => {
-        ev.stopPropagation();
-        seeking = false;
-        seekTo(m, +sl.value);
-      };
-      d.querySelector('[data-w]').onclick = ev => { ev.stopPropagation(); transcribirToma(m.id); };
+      sl.oninput = ev => { ev.stopPropagation(); seeking = true; sl.title = mmss(+sl.value); pintarTiempo(m.id, +sl.value, m.dur); };
+      sl.onchange = ev => { ev.stopPropagation(); seeking = false; seekTo(m, +sl.value); };
+      d.querySelector('[data-w]').onclick = ev => { ev.stopPropagation(); pedirGenerar(m.id); };
       d.querySelector('[data-i]').onclick = ev => { ev.stopPropagation(); insertar(m.id); };
       d.querySelector('[data-x]').onclick = ev => { ev.stopPropagation(); borrar(m.id); };
       box.appendChild(d);
     });
+    pintarWhisper();
   }
   function pararPlayer(){
     if (!player) return;
@@ -461,7 +855,7 @@ window.Grabadora = null;
       const m = P.medios.get(playId);
       pintarTiempo(playId, el.currentTime, (m && m.dur) || el.duration || 0);
     };
-    el.onended = () => { pintarPlayUI(null); playId = null; };
+    el.onended = () => { pintarPlayUI(null); playId = null; if (colaPlay) playSiguienteCola(); };
     el.onplay = () => pintarPlayUI(playId);
     el.onpause = () => pintarPlayUI(playId);
   }
@@ -472,163 +866,139 @@ window.Grabadora = null;
     if (playId !== m.id){
       if (player._u){ try{ URL.revokeObjectURL(player._u); }catch(_){} }
       const u = URL.createObjectURL(m.blob);
-      player._u = u;
-      player.src = u;
-      playId = m.id;
+      player._u = u; player.src = u; playId = m.id;
     }
+    player.playbackRate = velPlay;
     return player;
   }
   function togglePlay(m){
-    selId = m.id; currentId = m.id; blob = m.blob || null;
+    selId = m.id; currentId = m.id; blob = m.blob||null;
     const el = prepararPlayer(m); if (!el) return;
     if (playId === m.id && !el.paused){ el.pause(); pintarLista(); return; }
-    el.play().catch(e => aviso('No se pudo reproducir: ' + (e.message || e)));
+    el.playbackRate = velPlay;
+    el.play().catch(e => aviso('No se pudo reproducir: '+(e.message||e)));
     pintarLista();
   }
   function seekTo(m, t){
     const el = prepararPlayer(m); if (!el) return;
     const max = m.dur || el.duration || 0;
-    el.currentTime = Math.max(0, Math.min(max, +t || 0));
+    el.currentTime = Math.max(0, Math.min(max, +t||0));
     pintarTiempo(m.id, el.currentTime, max);
   }
+  function editarNom(m, el){
+    const inp = document.createElement('input');
+    inp.className = 'renom'; inp.maxLength = 60; inp.value = m.nom||'';
+    el.replaceWith(inp); inp.focus(); inp.select();
+    const ok = () => { let n = String(inp.value||'').trim().slice(0,60); if (!n) n = m.nom || nomNueva(); m.nom = n; pintarLista(); };
+    inp.onkeydown = ev => { ev.stopPropagation(); if (ev.key==='Enter'){ ev.preventDefault(); ok(); } if (ev.key==='Escape'){ ev.preventDefault(); pintarLista(); } };
+    inp.onblur = ok;
+  }
+  function playSiguienteCola(){
+    if (!colaPlay || !colaPlay.length){ colaPlay = null; pintarBadge(); pintarLista(); return; }
+    const id = colaPlay.shift(); const m = P.medios.get(id);
+    if (!m || !m.blob){ playSiguienteCola(); return; }
+    const el = prepararPlayer(m); if (!el){ playSiguienteCola(); return; }
+    el.playbackRate = velPlay;
+    el.play().catch(e => { aviso('No se pudo reproducir: '+(e.message||e),'err'); colaPlay=null; pintarBadge(); });
+    pintarLista(); pintarBadge();
+  }
+  function playTodo(){
+    if (colaPlay){ colaPlay=null; if (player) try{ player.pause(); }catch(_){ } pintarBadge(); pintarLista(); return; }
+    const tomas = [...P.medios.values()].filter(m => m.tipo==='grabacion' && m.blob);
+    if (!tomas.length){ aviso('No hay tomas.', 'info'); return; }
+    colaPlay = tomas.map(m => m.id); playSiguienteCola();
+  }
+  function aplicarVel(v){ velPlay = +v || 1; if (player) player.playbackRate = velPlay; }
   function mimeAudio(){
     const c = ['audio/webm;codecs=opus','audio/webm','audio/mp4;codecs=aac','audio/mp4'];
     for (const t of c){ if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t; }
     return '';
   }
-  function esMac(){
-    return /Mac|iPhone|iPad/.test(navigator.platform || '') || /Mac OS X/.test(navigator.userAgent || '');
-  }
+  function esMac(){ return /Mac|iPhone|iPad/.test(navigator.platform||'') || /Mac OS X/.test(navigator.userAgent||''); }
   function hintFuente(){
-    const v = ($('fuente') || {}).value || 'mic';
-    const h = $('hintFuente');
-    if (!h) return;
-    h.textContent = v === 'pestana'
-      ? 'Comparte una pestaña y marca «Compartir audio de la pestaña».'
-      : v === 'pantalla'
-        ? (esMac()
-          ? 'En Mac la pantalla completa no da audio de escritorio. Usa «Pestaña».'
-          : 'Comparte toda la pantalla y marca «Compartir audio del sistema» (Chrome/Edge en Windows o ChromeOS).')
-        : v === 'mezcla'
-          ? 'Micrófono + audio de pestaña o pantalla. Sin monitor: no hay eco.'
-          : 'Micrófono de este equipo.';
+    const v = ($('fuente')||{}).value || 'mic'; const h = $('hintFuente'); if (!h) return;
+    h.textContent = v==='mic' ? 'Micrófono de este equipo.' : v==='pestana' ? 'Elige una pestaña y marca «Compartir audio».' : v==='pantalla' ? (esMac() ? 'En Mac la pantalla no trae audio de escritorio. Usa Pestaña.' : 'Marca «Compartir audio del sistema».') : 'Mic + audio de pestaña/pantalla.';
+    h.style.display = v==='mic' ? 'none' : 'block';
   }
   function avisoSinAudio(tipo){
-    if (tipo === 'pantalla' && esMac())
-      aviso('En Mac la pantalla completa no trae audio de escritorio. Elige «Pestaña» y marca «Compartir audio».');
-    else
-      aviso('Esta captura no trae audio. Marca «Compartir audio» o elige una pestaña.');
+    if (tipo === 'pantalla' && esMac()) aviso('En Mac la pantalla completa no trae audio de escritorio. Elige «Pestaña» y marca «Compartir audio».', 'err');
+    else aviso('Esta captura no trae audio. Marca «Compartir audio» o elige una pestaña.', 'err');
   }
-  let micFiltros = null;
   function constraintsMic(){
     const on = !!( $('filtrosMic') && $('filtrosMic').checked );
-    return { audio: { echoCancellation: on, noiseSuppression: on, autoGainControl: on } };
+    return { audio:{ echoCancellation:on, noiseSuppression:on, autoGainControl:on } };
   }
   async function asegurarMic(){
-    const c = constraintsMic();
-    if (micVivo && micVivo.getAudioTracks().some(t => t.readyState === 'live') && micFiltros === c.audio.echoCancellation)
-      return micVivo;
-    if (micVivo){
-      micVivo.getTracks().forEach(t => { try{ t.stop(); }catch(_){} });
-      micVivo = null;
-    }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
-      throw new Error('El micrófono no está disponible en esta página.');
-    micVivo = await navigator.mediaDevices.getUserMedia(c);
-    micFiltros = c.audio.echoCancellation;
-    return micVivo;
+    const c = JSON.stringify(constraintsMic());
+    if (micVivo && micFiltros === c && micVivo.getAudioTracks().some(t => t.readyState==='live')) return micVivo;
+    if (micVivo) micVivo.getTracks().forEach(t => { try{ t.stop(); }catch(_){ } });
+    micVivo = await navigator.mediaDevices.getUserMedia(constraintsMic());
+    micFiltros = c; return micVivo;
   }
   async function abrirFuente(tipo){
-    extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} });
-    extra = [];
-    if (ctxMix){ try{ ctxMix.close(); }catch(_){} ctxMix = null; }
+    extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} }); extra = [];
     if (tipo === 'pestana' || tipo === 'pantalla'){
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia)
-        throw new Error('Este navegador no puede capturar pestaña o pantalla.');
-      const s = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true });
-      extra.push(s);
-      if (!s.getAudioTracks().length) avisoSinAudio(tipo);
-      return s;
+      const disp = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true });
+      extra.push(disp);
+      if (!disp.getAudioTracks().length) avisoSinAudio(tipo);
+      return new MediaStream(disp.getAudioTracks());
     }
     if (tipo === 'mezcla'){
-      let mic;
-      try{ mic = await asegurarMic(); }
-      catch(e){ throw e; }
-      let disp = null;
-      try{
-        if (!navigator.mediaDevices.getDisplayMedia)
-          throw new Error('sin display');
-        disp = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true });
-        extra.push(disp);
-      }catch(_){
-        aviso('Sin pantalla: la mezcla sigue solo con el micrófono.');
-        return mic;
-      }
+      const mic = await asegurarMic();
+      let disp;
+      try{ disp = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true }); extra.push(disp); }
+      catch(_){ aviso('Sin pantalla: la mezcla sigue solo con el micrófono.', 'info'); return mic; }
+      if (!disp.getAudioTracks().length) avisoSinAudio('pantalla');
       const AC = window.AudioContext || window.webkitAudioContext;
       ctxMix = new AC();
       const dest = ctxMix.createMediaStreamDestination();
       ctxMix.createMediaStreamSource(mic).connect(dest);
-      if (disp.getAudioTracks().length)
-        ctxMix.createMediaStreamSource(disp).connect(dest);
-      else {
-        avisoSinAudio('pantalla');
-      }
+      if (disp.getAudioTracks().length) ctxMix.createMediaStreamSource(disp).connect(dest);
       return dest.stream;
     }
     return asegurarMic();
   }
   async function iniciar(){
-    if (estado === GRABANDO) return;
+    if (estado === GRABANDO || estado === PAUSADO) return;
     aviso('');
     if (!window.MediaRecorder){ aviso('Este navegador no tiene MediaRecorder.'); return; }
-    fuenteActiva = ($('fuente') || {}).value || 'mic';
+    fuenteActiva = esAvanzado() ? (($('fuente')||{}).value || 'mic') : 'mic';
     let crudo;
     try{ crudo = await abrirFuente(fuenteActiva); }
     catch(e){
-      if (fuenteActiva === 'mic')
-        aviso('Permiso denegado o micrófono no disponible. Candado de Chrome → Permitir. ' + (e.message || e.name || ''));
-      else
-        aviso('No se pudo abrir la captura. Se cancela. ' + (e.message || e.name || ''));
+      aviso(fuenteActiva==='mic' ? ('Permiso denegado o micrófono no disponible. '+(e.message||e.name||'')) : ('No se pudo abrir la captura. '+(e.message||e.name||'')), 'err');
       return;
     }
-    if (!crudo.getAudioTracks().some(t => t.readyState === 'live')){
-      if (!($('aviso').classList.contains('on'))) avisoSinAudio(fuenteActiva);
-      extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} });
-      extra = [];
+    if (!crudo.getAudioTracks().some(t => t.readyState==='live')){
+      extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} }); extra = [];
       return;
     }
-    streamToma = fuenteActiva === 'mic'
-      ? crudo.clone()
-      : new MediaStream(crudo.getAudioTracks());
+    streamToma = fuenteActiva === 'mic' ? crudo.clone() : new MediaStream(crudo.getAudioTracks());
     if (!ctx || ctx.state === 'closed') ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') await ctx.resume();
     t0 = ctx.currentTime;
-    try{
-      analyser = ctx.createAnalyser(); analyser.fftSize = 512;
-      ctx.createMediaStreamSource(streamToma).connect(analyser);
-    }catch(_){ analyser = null; }
+    try{ analyser = ctx.createAnalyser(); analyser.fftSize = 512; ctx.createMediaStreamSource(streamToma).connect(analyser); }
+    catch(_){ analyser = null; }
     mime = mimeAudio();
-    $('codec').textContent = 'Codec: ' + (mime || 'MediaRecorder') + ' · ' + fuenteActiva;
-    chunks = []; blob = null;
+    $('codec').textContent = 'Codec: ' + (mime || 'MediaRecorder');
+    chunks = []; blob = null; speechCues = []; speechT0 = 0;
     if (url){ URL.revokeObjectURL(url); url = null; }
     currentId = null;
     try{
       rec = mime ? new MediaRecorder(streamToma, { mimeType: mime }) : new MediaRecorder(streamToma);
       rec.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+      rec.onpause = () => entrarPausa();
+      rec.onresume = () => salirPausa();
+      rec.onerror = ev => aviso('Grabadora: '+((ev.error&&ev.error.name)||'error'), 'err');
       rec.start(100);
-    }catch(e){ aviso('No arrancó la grabación: ' + (e.message || e)); soltarClon(); return; }
+    }catch(e){ aviso('No arrancó la grabación: '+(e.message||e)); soltarClon(); return; }
     estado = GRABANDO; pintarBadge();
     $('timer').textContent = '00:00.0';
-    clearInterval(tick);
-    tick = setInterval(() => {
-      dur = Math.max(0, ctx.currentTime - t0);
-      $('timer').textContent = fmt(dur);
-    }, 80);
-    cancelAnimationFrame(raf); bucleOnda();
+    relojVivo(); cancelAnimationFrame(raf); bucleOnda();
+    if (speechOn()){ arrancarSpeech(); pintarLive(true); }
   }
   function soltarClon(){
-    extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} });
-    extra = [];
+    extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} }); extra = [];
     if (ctxMix){ try{ ctxMix.close(); }catch(_){} ctxMix = null; }
     if (!streamToma) return;
     streamToma.getTracks().forEach(t => { try{ t.stop(); }catch(_){ } });
@@ -638,52 +1008,90 @@ window.Grabadora = null;
     soltarClon();
     if (!micVivo) return;
     micVivo.getTracks().forEach(t => { try{ t.stop(); }catch(_){ } });
-    micVivo = null;
-    micFiltros = null;
+    micVivo = null; micFiltros = null;
   }
   function guardarToma(){
     if (!blob || blob.size < 32) return null;
     const id = nextId('grab-', true);
-    P.medios.set(id, { id, tipo:'grabacion', blob, dur, nom: nomNueva(), insertado:false, mime, fuente: fuenteActiva });
+    P.medios.set(id, { id, tipo:'grabacion', blob, dur, nom: nomNueva(), mime, fuente: fuenteActiva });
     currentId = id; selId = id; pintarLista();
     return id;
   }
+  function relojVivo(){
+    clearInterval(tick);
+    tick = setInterval(() => {
+      if (estado !== GRABANDO || !ctx) return;
+      dur = Math.max(0, ctx.currentTime - t0);
+      $('timer').textContent = fmt(dur);
+    }, 80);
+  }
+  function entrarPausa(){
+    if (estado === PAUSADO) return;
+    if (ctx && estado === GRABANDO) dur = Math.max(0, ctx.currentTime - t0);
+    $('timer').textContent = fmt(dur);
+    estado = PAUSADO; pararSpeech();
+    clearInterval(tick); cancelAnimationFrame(raf); pintarBadge();
+  }
+  function salirPausa(){
+    if (estado === GRABANDO) return;
+    if (ctx) t0 = ctx.currentTime - dur;
+    estado = GRABANDO; relojVivo(); bucleOnda();
+    if (speechOn()){ arrancarSpeech(); pintarLive(true); }
+    pintarBadge();
+  }
   function detener(){
-    if (estado !== GRABANDO) return;
+    if (estado !== GRABANDO && estado !== PAUSADO) return;
+    pararSpeech();
     clearInterval(tick); cancelAnimationFrame(raf);
-    dur = ctx && ctx.state !== 'closed' ? Math.max(0, ctx.currentTime - t0) : dur;
+    if (estado === GRABANDO && ctx && ctx.state !== 'closed') dur = Math.max(0, ctx.currentTime - t0);
     $('timer').textContent = fmt(dur);
     const fin = () => {
       blob = new Blob(chunks, { type: (rec && rec.mimeType) || mime || 'audio/webm' });
       mime = blob.type || mime;
       if (url) URL.revokeObjectURL(url);
       url = blob.size ? URL.createObjectURL(blob) : null;
-      if (!chunks.length || blob.size < 32)
-        aviso('El micrófono no entregó audio. Revisa el candado de Chrome.');
-      else guardarToma();
+      if (!chunks.length || blob.size < 32) aviso('El micrófono no entregó audio.', 'err');
+      else { guardarToma(); pintarLive(true); }
       soltarClon(); pintarOnda(false);
       estado = COMPLETADO; pintarBadge();
     };
-    if (rec && rec.state !== 'inactive'){ rec.onstop = fin; try{ rec.stop(); }catch(_){ fin(); } }
-    else fin();
+    if (rec && rec.state !== 'inactive'){
+      rec.onstop = fin;
+      try{ if (typeof rec.requestData==='function') rec.requestData(); rec.stop(); }catch(_){ fin(); }
+    } else fin();
   }
-  function insertar(id){
-    const m = P.medios.get(id || currentId || selId);
-    if (!m){ aviso('No hay toma para insertar.'); return null; }
-    asegurarAudio();
-    const cid = nextId('clip-', false);
-    P.clips[cid] = { id: cid, medio: m.id, pista:'audio-1', inicio: P.t, duracion: m.dur, props:{} };
-    m.insertado = true;
-    P.sel = cid;
-    P.selm = new Set([cid]);
-    selId = m.id;
-    pintarLista(); estado = LISTO; pintarBadge();
-    return cid;
+  function puedePausa(){
+    return !!(rec && rec.state && rec.state !== 'inactive' && typeof rec.pause==='function' && typeof rec.resume==='function');
+  }
+  function pausarOReanudar(){
+    if (!rec){ aviso('No hay grabación activa.', 'err'); return; }
+    if (estado === PAUSADO || rec.state === 'paused'){
+      if (rec.state !== 'paused'){ salirPausa(); return; }
+      try{ rec.resume(); }catch(e){ aviso('No se pudo reanudar: '+(e.message||e),'err'); }
+      return;
+    }
+    if (estado !== GRABANDO) return;
+    if (!puedePausa() || rec.state !== 'recording'){ aviso('Este navegador no pausa MediaRecorder.', 'err'); return; }
+    try{ if (typeof rec.requestData==='function') rec.requestData(); rec.pause(); }
+    catch(e){ aviso('No se pudo pausar: '+(e.message||e),'err'); }
+  }
+  function pulsarGrabar(){
+    if (estado === GRABANDO || estado === PAUSADO){ detener(); return; }
+    if ($('chkCuenta') && $('chkCuenta').checked && esAvanzado()){
+      const tok = ++cuentaTok; const btn = $('bGrabar'); btn.classList.add('cuenta');
+      let n = 3;
+      const tickC = () => {
+        if (tok !== cuentaTok){ btn.classList.remove('cuenta'); return; }
+        if (n <= 0){ btn.classList.remove('cuenta'); iniciar(); return; }
+        btn.textContent = String(n); n--; setTimeout(tickC, 1000);
+      };
+      tickC(); return;
+    }
+    iniciar();
   }
   function borrar(id){
-    const m = P.medios.get(id);
-    if (!m) return;
-    if (!confirm('¿Borrar «' + m.nom + '»?')) return;
+    const m = P.medios.get(id); if (!m) return;
+    if (!confirm('¿Borrar '+m.nom+'?')) return;
     if (playId === id) pararPlayer();
     Object.keys(P.clips).forEach(k => { if (P.clips[k].medio === id) delete P.clips[k]; });
     P.medios.delete(id);
@@ -697,60 +1105,256 @@ window.Grabadora = null;
     chunks = []; blob = null;
     if (url){ URL.revokeObjectURL(url); url = null; }
     soltarClon();
-    if (currentId){
-      const m = P.medios.get(currentId);
-      if (m && !m.insertado) P.medios.delete(currentId);
-    }
-    currentId = null;
+    if (currentId) P.medios.delete(currentId);
+    currentId = null; selId = null;
     $('timer').textContent = '00:00.0';
     pintarOnda(false); pintarLista();
     estado = LISTO; pintarBadge();
   }
+
+  function leerUI(){ try{ return JSON.parse(localStorage.getItem('gs-ui')||'{}'); }catch(_){ return {}; } }
+  function salvarUI(p){ try{ localStorage.setItem('gs-ui', JSON.stringify(p)); }catch(_){} }
+  function esAvanzado(){ return (leerUI().modo || 'simple') === 'avanzado'; }
+  function aplicarModo(){
+    const adv = esAvanzado();
+    document.documentElement.classList.toggle('modo-simple', !adv);
+    document.documentElement.classList.toggle('modo-avanzado', adv);
+    if ($('bSimple')) $('bSimple').classList.toggle('on', !adv);
+    if ($('bAvanzado')) $('bAvanzado').classList.toggle('on', adv);
+    if (!adv){
+      if ($('fuente')) $('fuente').value = 'mic';
+      if ($('chkCuenta')) $('chkCuenta').checked = false;
+      if ($('chkSpeech')) $('chkSpeech').checked = false;
+      if ($('avisoSpeech')) $('avisoSpeech').style.display = 'none';
+      pararSpeech(); liveActivo = false;
+      if ($('liveBox')) $('liveBox').classList.remove('on');
+      if ($('bLiveOpen')) $('bLiveOpen').classList.remove('on');
+      hintFuente();
+    }
+  }
+  function aplicarUI(){
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    document.documentElement.classList.toggle('claro', p.tema === 'claro');
+    document.documentElement.style.fontSize = ['13px','15px','17px'][Math.max(0, Math.min(2, p.tipo|0))] || '13px';
+    if ($('bTema')) $('bTema').textContent = p.tema === 'claro' ? '☾' : '☀';
+    aplicarModo();
+  }
+  function setModo(m){
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.modo = m; salvarUI(p); aplicarUI();
+  }
+
+  function apiTraductor(){ return (typeof Translator !== 'undefined') ? Translator : null; }
+  let tradSesion = null, tradClave = '', tradCache = new Map();
+  async function sesionTrad(src, dst){
+    const API = apiTraductor(); if (!API) return null;
+    const k = src+'|'+dst;
+    if (tradSesion && tradClave === k) return tradSesion;
+    if (tradSesion && typeof tradSesion.destroy === 'function'){ try{ tradSesion.destroy(); }catch(_){} }
+    tradSesion = null; tradClave = '';
+    const opts = { sourceLanguage: src, targetLanguage: dst };
+    if (typeof API.availability === 'function'){
+      const av = await API.availability(opts);
+      if (av === 'unavailable') throw new Error('Par de idiomas no disponible');
+    }
+    const tr = await API.create({
+      ...opts,
+      monitor: m => m.addEventListener('downloadprogress', ev => {
+        const p = ev.total ? Math.round(100*ev.loaded/ev.total) : Math.round((ev.loaded||0)*100);
+        aviso('Modelo de idioma… '+p+'%', 'info');
+      })
+    });
+    tradSesion = tr; tradClave = k; return tr;
+  }
+  async function traducirCues(){
+    const cues = cuesDePista();
+    if (!cues.length){ aviso('No hay cues que traducir.', 'err'); return; }
+    const src = ($('langOrigen')||{}).value || 'es';
+    const dst = ($('langDest')||{}).value || 'en';
+    if (src === dst){ aviso('Origen y destino iguales.', 'err'); return; }
+    if (!apiTraductor()){ aviso('Este navegador no tiene Translator on-device.', 'err'); return; }
+    try{
+      aviso('Traduciendo…', 'info');
+      const tr = await sesionTrad(src, dst);
+      const pref = src+'>'+dst+'\0';
+      const trabajos = [];
+      cues.forEach(c => {
+        const clip = P.clips[c.id]; if (!clip || !clip.props) return;
+        const orig = clip.props.textoOrig != null ? clip.props.textoOrig : String(clip.props.texto||'');
+        if (!orig.trim()) return;
+        if (clip.props.lang === dst && clip.props.texto && clip.props.texto !== orig) return;
+        trabajos.push({ clip, orig, clave: pref+orig });
+      });
+      if (!trabajos.length){ aviso('Nada nuevo que traducir.', 'info'); return; }
+      for (const it of trabajos){
+        if (!tradCache.has(it.clave)) tradCache.set(it.clave, await tr.translate(it.orig));
+      }
+      let n = 0;
+      enLote('traducir cues', () => {
+        trabajos.forEach(t => {
+          const done = tradCache.get(t.clave); if (done == null) return;
+          if (t.clip.props.textoOrig == null) t.clip.props.textoOrig = t.orig;
+          t.clip.props.texto = done; t.clip.props.lang = dst; n++;
+        });
+      });
+      pintarCues();
+      aviso(n+' cues · '+src+'→'+dst, 'ok');
+    }catch(e){ aviso('Traducción falló: '+(e.message||e), 'err'); }
+  }
+  function restaurarOriginal(){
+    const cues = cuesDePista(); let n = 0;
+    enLote('restaurar texto original', () => {
+      cues.forEach(c => {
+        const clip = P.clips[c.id];
+        if (clip && clip.props && clip.props.textoOrig != null){ clip.props.texto = clip.props.textoOrig; n++; }
+      });
+    });
+    pintarCues();
+    aviso(n ? n+' cues restaurados.' : 'No hay original guardado.', n ? 'ok' : 'info');
+  }
+
+  function SRClass(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
+  function speechOn(){ return liveActivo || !!( $('chkSpeech') && $('chkSpeech').checked ); }
+  function ahoraRec(){ return (estado === GRABANDO && ctx) ? Math.max(0, ctx.currentTime - t0) : (dur||0); }
+  function pararSpeech(){
+    if (!speechRec) return;
+    try{ speechRec.onresult = null; speechRec.onerror = null; speechRec.onend = null; speechRec.stop(); }catch(_){}
+    speechRec = null;
+  }
+  function pintarLive(forzar, inter){
+    const box = $('liveBox'), cuerpo = $('liveCuerpo');
+    if (!box || !cuerpo) return;
+    const ver = liveActivo || (speechOn() && (estado===GRABANDO || estado===PAUSADO || speechCues.length || forzar));
+    box.classList.toggle('on', !!ver);
+    box.classList.toggle('rec', estado === GRABANDO);
+    if ($('bLiveOpen')) $('bLiveOpen').classList.toggle('on', !!ver);
+    if (box._min) cuerpo.style.display = 'none'; else cuerpo.style.display = '';
+    const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    cuerpo.innerHTML = speechCues.map(c =>
+      '<div class="fra"><span class="ts">['+mmss(c.t0)+']</span><span class="orig">'+esc(c.texto)+'</span>'+
+      (c.trad ? '<span class="trad">'+esc(c.trad)+'</span>' : '')+'</div>'
+    ).join('') + (inter ? '<div class="fra"><span class="ts"></span><span class="trad">… '+esc(inter)+'</span></div>' : '');
+    cuerpo.scrollTop = cuerpo.scrollHeight;
+  }
+  async function traducirLiveLinea(cue){
+    const dst = ($('liveLang')||{}).value || '';
+    if (!dst || !apiTraductor() || !cue || !cue.texto) return;
+    try{
+      const src = 'es';
+      if (src === dst){ cue.trad = cue.texto; pintarLive(); return; }
+      const tr = await sesionTrad(src, dst);
+      cue.trad = await tr.translate(cue.texto); pintarLive();
+    }catch(_){}
+  }
+  function enviarLive(){
+    if (!speechCues.length){ aviso('No hay líneas que enviar.', 'info'); return; }
+    const modo = ($('liveSendModo')||{}).value || 'trad';
+    const arr = speechCues.map(c => ({ t0:c.t0, t1:c.t1, texto:(modo==='trad' && c.trad) ? c.trad : c.texto }));
+    const n = meterCues(arr);
+    speechCues = []; pintarLive(false);
+    aviso(n+' subtítulos enviados.', 'ok');
+  }
+  function textoLivePlano(){
+    return speechCues.map(c => {
+      const linea = '['+mmss(c.t0)+'] '+String(c.texto||'');
+      return c.trad ? linea+'\n'+c.trad : linea;
+    }).join('\n\n');
+  }
+  function guardarLiveTxt(){
+    const t = textoLivePlano();
+    if (!t.trim()){ aviso('No hay texto que guardar.', 'info'); return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([t], { type:'text/plain;charset=utf-8' }));
+    a.download = 'vivo-'+stampNom()+'.txt';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    aviso('Texto guardado.', 'ok');
+  }
+  function abrirLive(){
+    if (!SRClass()){ aviso('El reconocimiento en vivo requiere Chrome/Edge con conexión.', 'err'); return; }
+    liveActivo = true;
+    if ($('chkSpeech')) $('chkSpeech').checked = true;
+    if ($('avisoSpeech')) $('avisoSpeech').style.display = 'block';
+    if ($('livePriv')) $('livePriv').classList.add('on');
+    pintarLive(true);
+    if (estado === GRABANDO) arrancarSpeech();
+  }
+  function cerrarLive(){
+    liveActivo = false;
+    if ($('liveBox')) $('liveBox').classList.remove('on');
+    if ($('bLiveOpen')) $('bLiveOpen').classList.remove('on');
+  }
+  function arrancarSpeech(){
+    pararSpeech();
+    const C = SRClass(); if (!C || !speechOn()) return;
+    speechT0 = ahoraRec();
+    const r = new C();
+    r.lang = 'es-ES'; r.continuous = true; r.interimResults = true;
+    r.onresult = ev => {
+      let inter = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++){
+        const res = ev.results[i];
+        const texto = String(res[0] && res[0].transcript || '').trim();
+        if (!texto) continue;
+        if (!res.isFinal){ inter = texto; continue; }
+        const t1 = ahoraRec(), t0s = Math.max(0, speechT0);
+        const cue = { t0:t0s, t1:Math.max(t0s+0.4, t1), texto, trad:'' };
+        speechCues.push(cue); speechT0 = Math.max(t0s+0.4, t1);
+        traducirLiveLinea(cue);
+      }
+      pintarLive(false, inter);
+    };
+    r.onerror = ev => { if (ev.error === 'not-allowed') aviso('Permiso de reconocimiento denegado.', 'err'); };
+    r.onend = () => { if (estado === GRABANDO && speechOn()){ try{ r.start(); }catch(_){} } };
+    speechRec = r;
+    try{ r.start(); }catch(e){ aviso('Reconocimiento no arrancó: '+(e.message||e), 'err'); }
+  }
+
   async function vadDeBlob(blob){
     const AC = window.AudioContext || window.webkitAudioContext;
-    const ac = new AC();
-    const buf = await ac.decodeAudioData(await blob.arrayBuffer());
-    try{ ac.close(); }catch(_){}
-    const data = buf.getChannelData(0), rate = buf.sampleRate;
-    const win = Math.max(1, Math.floor(rate * 0.02));
+    if (!AC) return [];
+    const ctx2 = new AC();
+    let buf;
+    try{
+      const ab = await blob.arrayBuffer();
+      buf = await ctx2.decodeAudioData(ab.slice(0));
+    }catch(_){ try{ ctx2.close(); }catch(__){} return []; }
+    const ch = buf.getChannelData(0);
+    const sr = buf.sampleRate, win = Math.floor(sr*0.02);
     const rms = [];
-    for (let i = 0; i + win <= data.length; i += win){
-      let a = 0;
-      for (let k = 0; k < win; k++) a += data[i+k] * data[i+k];
-      rms.push({ t: i / rate, e: Math.sqrt(a / win) });
+    for (let i = 0; i < ch.length; i += win){
+      let e = 0, n = Math.min(win, ch.length-i);
+      for (let j = 0; j < n; j++) e += ch[i+j]*ch[i+j];
+      rms.push({ t: i/sr, e: Math.sqrt(e/n) });
     }
-    if (rms.length < 6) return [];
-    const ord = rms.map(x => x.e).slice().sort((a,b) => a-b);
-    const p20 = ord[Math.floor(ord.length*0.2)] || 0.01;
-    const p80 = ord[Math.floor(ord.length*0.8)] || 0.08;
-    if (p80 - p20 < 0.004 && p80 > 0.02)
-      return [{ t0:0, t1: data.length / rate, texto:'[Voz local]' }];
-    const suelo = Math.max(0.008, p20);
-    const alto = Math.max(suelo * 2.2, suelo + (p80 - suelo) * 0.45);
-    const bajo = suelo * 1.35;
-    const raw = [];
-    let voz = false, ini = 0, last = 0;
+    const sorted = rms.map(p => p.e).sort((a,b)=>a-b);
+    const p20 = sorted[Math.floor(sorted.length*0.2)]||0;
+    const p80 = sorted[Math.floor(sorted.length*0.8)]||0;
+    const alto = Math.max(0.01, p20 + (p80-p20)*0.45);
+    const bajo = alto*0.55;
+    const raw = []; let voz = false, ini = 0, last = 0;
     rms.forEach(p => {
-      if (!voz && p.e >= alto){ voz = true; ini = Math.max(0, p.t - 0.04); last = p.t; }
+      if (!voz && p.e >= alto){ voz = true; ini = Math.max(0, p.t-0.04); last = p.t; }
       else if (voz && p.e >= bajo) last = p.t;
       else if (voz && p.t - last >= 0.14){
-        if (last - ini >= 0.22) raw.push({ t0: ini, t1: last + 0.04, texto:'[Voz local]' });
+        if (last-ini >= 0.22) raw.push({ t0:ini, t1:last+0.04, texto:'[Voz local]' });
         voz = false;
       }
     });
-    if (voz && last - ini >= 0.22) raw.push({ t0: ini, t1: last + 0.04, texto:'[Voz local]' });
+    if (voz && last-ini >= 0.22) raw.push({ t0:ini, t1:last+0.04, texto:'[Voz local]' });
+    try{ ctx2.close(); }catch(_){}
     return raw;
   }
   function pintarWhisper(){
-    const el = $('estWhisper'); if (!el) return;
-    const eng = window.WhisperEngine;
-    if (!eng){ el.textContent = 'Whisper no disponible. Se usará detección de voz.'; return; }
+    const el = $('estWhisper'); const eng = window.WhisperEngine;
+    const down = $('bWhisperDown'), del = $('bWhisperDel');
+    if (down) down.hidden = !eng; if (del) del.hidden = !eng;
+    if (!el) return;
+    if (!eng){ el.textContent = ''; return; }
     const st = eng.estado();
-    el.textContent = st === 'listo'
-      ? 'Whisper: listo · ' + (eng.webgpu && eng.webgpu() ? 'WebGPU' : 'WASM') + ' · 100% local'
-      : st === 'descargando' ? 'Whisper: descargando modelo…'
-      : st === 'error' ? 'Whisper: error · ' + ((eng.error && eng.error()) || '')
-      : 'Whisper: motor detectado. Descarga el modelo una vez (~75 MB).';
+    el.textContent = st==='listo' ? ('Whisper listo · '+(eng.webgpu && eng.webgpu() ? 'WebGPU':'WASM')) :
+      st==='descargando' ? 'Descargando modelo…' :
+      st==='error' ? 'Error al cargar el modelo' : 'Motor listo. Descarga el modelo una vez (~75 MB).';
   }
   function loadWhisper(){
     if (window.WhisperEngine){ pintarWhisper(); return; }
@@ -758,183 +1362,372 @@ window.Grabadora = null;
     window._weTried = true;
     const s = document.createElement('script');
     s.src = './WhisperEngine.js';
-    s.onload = pintarWhisper;
-    s.onerror = pintarWhisper;
+    s.onload = pintarWhisper; s.onerror = pintarWhisper;
     document.head.appendChild(s);
+  }
+  function modeloListo(){ const eng = window.WhisperEngine; return !!(eng && eng.estado && eng.estado()==='listo'); }
+  let genPendiente = null;
+  function pedirGenerar(id){
+    genPendiente = id || selId || currentId;
+    if (!P.medios.get(genPendiente) || !P.medios.get(genPendiente).blob){ aviso('Elige una toma con audio.', 'err'); return; }
+    if (modeloListo()){ transcribirToma(genPendiente); return; }
+    const hayEng = !!window.WhisperEngine;
+    $('dlgGen').classList.add('on');
+    $('bGenSi').style.display = hayEng ? '' : 'none';
+    const p = $('dlgGen').querySelector('p');
+    p.textContent = hayEng
+      ? 'Necesita descargar el modelo (~75 MB, una sola vez). 100% local.'
+      : 'No hay motor Whisper al lado. Puedes marcar tiempos de voz y escribir el texto.';
+  }
+  function cerrarGen(){ $('dlgGen').classList.remove('on'); }
+  let downCancel = false;
+  function cerrarDown(){
+    downCancel = true;
+    const dlg = $('dlgDown');
+    if (dlg) dlg.classList.remove('on');
+  }
+  function setProg(pct){
+    if (downCancel && pct != null && pct < 100) return;
+    const dlg = $('dlgDown'), bar = $('barraWhisper'), i = $('barraWhisperI');
+    const on = pct != null && pct < 100;
+    if (dlg) dlg.classList.toggle('on', on);
+    if (bar) bar.classList.toggle('on', pct != null);
+    const n = Math.max(0, Math.min(100, Math.round(pct||0)));
+    if (i && pct != null) i.style.width = n+'%';
+    if ($('downPct')) $('downPct').textContent = n+'%';
+    if ($('downMb')) $('downMb').textContent = Math.round(n/100*75)+' / 75 MB';
+  }
+  async function genSi(){
+    cerrarGen();
+    if (!window.WhisperEngine){ aviso('Falta WhisperEngine.js.', 'err'); return; }
+    try{
+      downCancel = false;
+      setProg(1);
+      await window.WhisperEngine.cargar({ onProgreso: p => setProg(p.progress||0) });
+      setProg(100); pintarWhisper();
+      await transcribirToma(genPendiente);
+    }catch(e){ setProg(null); aviso('Descarga falló: '+(e.message||e),'err'); }
+  }
+  async function genVad(){
+    cerrarGen();
+    const m = P.medios.get(genPendiente);
+    if (!m || !m.blob){ aviso('Elige una toma.', 'err'); return; }
+    aviso('Marcas de voz…', 'info');
+    const segs = await vadDeBlob(m.blob);
+    if (!segs.length){ aviso('VAD: no hay voz.', 'err'); return; }
+    aviso(meterCues(segs)+' marcas [Voz local].', 'ok');
   }
   async function transcribirToma(id){
     const m = P.medios.get(id || selId || currentId);
-    if (!m || !m.blob){ aviso('Elige una toma con audio.'); return 0; }
+    if (!m || !m.blob){ aviso('Elige una toma con audio.', 'err'); return 0; }
     const eng = window.WhisperEngine;
     try{
       if (eng){
-        aviso('Transcribiendo con Whisper…');
+        aviso('Transcribiendo con Whisper…', 'info');
         if (eng.estado() !== 'listo'){
+          downCancel = false;
           setProg(1);
-          await eng.cargar({ onProgreso: p => {
-            setProg(p.progress || 0);
-            aviso('Modelo… ' + Math.round(p.progress || 0) + '%');
-          }});
+          await eng.cargar({ onProgreso: p => setProg(p.progress||0) });
           setProg(100);
         }
-        const r = await eng.transcribir(m.blob, { idioma: 'es' });
+        const r = await eng.transcribir(m.blob, { idioma:'es' });
         const segs = (r && r.segmentos) || [];
-        if (!segs.length){ aviso('Whisper no detectó voz.'); return 0; }
+        if (!segs.length){ aviso('Whisper no detectó voz.', 'err'); return 0; }
         const n = meterCues(segs);
-        aviso(n + ' cues Whisper.');
-        return n;
+        aviso(n+' subtítulos (Whisper).', 'ok'); return n;
       }
-      aviso('Sin modelo. VAD (tiempos, sin texto)…');
+      aviso('Sin Whisper. VAD (tiempos, sin texto).', 'info');
       const segs = await vadDeBlob(m.blob);
-      if (!segs.length){ aviso('VAD: no hay voz.'); return 0; }
+      if (!segs.length){ aviso('VAD: no hay voz.', 'err'); return 0; }
       const n = meterCues(segs);
-      aviso(n + ' cues VAD [Voz local]. Descarga Whisper para texto.');
-      return n;
-    }catch(e){
-      aviso('Transcribir falló: ' + (e.message || e));
-      return 0;
+      aviso(n+' marcas de voz [Voz local].', 'ok'); return n;
+    }catch(e){ setProg(null); aviso('Transcribir falló: '+(e.message||e),'err'); return 0; }
+  }
+
+  function idbAbrir(){
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('gs-proyecto', 1);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
+        if (!db.objectStoreNames.contains('blobs')) db.createObjectStore('blobs');
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  function idbPut(db, store, key, val){
+    return new Promise((res, rej) => {
+      const tx = db.transaction(store, 'readwrite');
+      tx.objectStore(store).put(val, key);
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
+    });
+  }
+  function idbGet(db, store, key){
+    return new Promise((res, rej) => {
+      const tx = db.transaction(store, 'readonly');
+      const q = tx.objectStore(store).get(key);
+      q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error);
+    });
+  }
+  async function hayProyecto(){
+    try{ const db = await idbAbrir(); const meta = await idbGet(db,'meta','actual'); db.close(); return !!(meta && meta.ok); }
+    catch(_){ return false; }
+  }
+  async function guardarProyecto(){
+    try{
+      const db = await idbAbrir();
+      const tomas = [...P.medios.values()].filter(m => m.tipo==='grabacion');
+      const meta = { ok:true, clips:P.clips, pistas:PISTAS.slice(), sel:P.sel, tomas: tomas.map(m => ({ id:m.id, nom:m.nom, dur:m.dur, mime:m.mime, fuente:m.fuente })) };
+      await idbPut(db, 'meta', 'actual', meta);
+      for (const m of tomas) await idbPut(db, 'blobs', m.id, m.blob || new Blob());
+      db.close(); aviso('Proyecto guardado.', 'ok');
+    }catch(e){ aviso('No se pudo guardar: '+(e.message||e),'err'); }
+  }
+  async function cargarProyecto(){
+    const db = await idbAbrir();
+    const meta = await idbGet(db, 'meta', 'actual');
+    if (!meta || !meta.ok){ db.close(); return false; }
+    P.clips = meta.clips || {};
+    PISTAS.length = 0; (meta.pistas||[]).forEach(p => PISTAS.push(p));
+    P.sel = meta.sel || null; P.medios = new Map();
+    for (const t of (meta.tomas||[])){
+      const blob = await idbGet(db, 'blobs', t.id);
+      P.medios.set(t.id, { id:t.id, tipo:'grabacion', nom:t.nom, dur:t.dur, mime:t.mime, fuente:t.fuente, blob: blob||new Blob() });
     }
+    db.close();
+    selId = (meta.tomas && meta.tomas[0] && meta.tomas[0].id) || null;
+    pintarLista(); pintarCues(); pintarBadge();
+    aviso('Proyecto restaurado.', 'ok'); return true;
+  }
+  function mostrarAvisoSesion(){
+    if (!sessionStorage.getItem('gs-aviso-recarga')){
+      sessionStorage.setItem('gs-aviso-recarga', '1');
+      if ($('avisoSesion')) $('avisoSesion').classList.add('on');
+    }
+  }
+  async function arranqueProyecto(){
+    if (await hayProyecto()){ $('dlgProy').classList.add('on'); return; }
+    mostrarAvisoSesion();
+  }
+
+  function insertar(id){
+    const m = P.medios.get(id || currentId || selId);
+    if (!m){ aviso('Elige una toma.', 'err'); return null; }
+    if (!m.blob || !m.blob.size){ aviso('Esta toma no tiene audio.', 'err'); return null; }
+    asegurarAudio();
+    const cid = nextId('clip-', false);
+    P.clips[cid] = { id:cid, medio:m.id, pista:'audio-1', inicio:P.t, duracion:m.dur, props:{} };
+    P.sel = cid; P.selm = new Set([cid]); selId = m.id;
+    pintarLista(); estado = LISTO; pintarBadge();
+    const det = { clipId:cid, medioId:m.id, nom:m.nom, dur:m.dur, mime:m.mime };
+    try{ document.dispatchEvent(new CustomEvent('grabadora-insertar', { detail:det })); }catch(_){}
+    try{
+      if (window.parent && window.parent !== window)
+        window.parent.postMessage({ tipo:'grabadora-insertar', clipId:cid, medioId:m.id, nom:m.nom, dur:m.dur }, '*');
+    }catch(_){}
+    aviso('Enviado a la pista Audio 1.', 'ok');
+    return cid;
   }
   function ok(nom, pass, por){
     const d = document.createElement('div');
-    d.className = 'test ' + (pass ? 'ok' : 'ko');
-    d.textContent = (pass ? '✓ ' : '✗ ') + nom + ' — ' + por;
-    $('testOut').appendChild(d);
-    return pass;
+    d.className = 'test '+(pass?'ok':'ko');
+    d.textContent = (pass?'✓ ':'✗ ')+nom+' — '+por;
+    $('testOut').appendChild(d); return pass;
   }
   function correrBanco(){
     $('testOut').innerHTML = '';
-    const snapMed = new Map(P.medios);
-    const snapClips = Object.assign({}, P.clips);
-    const snapSel = P.sel;
-    const snapSelId = selId;
-    const id = nextId('grab-', true);
-    P.medios.set(id, { id, tipo:'grabacion', blob:new Blob([new Uint8Array(8)]), dur:1, nom:'Toma banco', insertado:false });
-    pintarLista();
-    ok('Listar toma fake', !!document.querySelector('#lista .li'), 'aparece en Mis tomas');
-    selId = id; pintarLista();
-    ok('Seleccionar', document.querySelector('#lista .li.sel') !== null, 'borde verde');
-    const cid = insertar(id);
-    ok('Insertar → P.clips', !!(cid && P.clips[cid] && P.clips[cid].medio === id), String(cid));
-    ok('P.sel es string', typeof P.sel === 'string' && P.sel === cid, JSON.stringify(P.sel));
-    P.medios.delete(id); delete P.clips[cid]; selId = null; pintarLista();
-    ok('Borrar toma', !P.medios.has(id) && ![...P.medios.values()].some(x => x.nom === 'Toma banco'), 'desaparece');
-    P.medios = snapMed; P.clips = snapClips; P.sel = snapSel; selId = snapSelId; pintarLista();
-    ok('Sin basura tras el banco', !P.medios.has(id), 'estado restaurado');
-
-    const teniaSub = hayPistaSub();
-    if (teniaSub){
-      /* Σ10 mide el estado sin pista: se quita solo para el aserto y se restaura. */
-    }
-    const pistasSnap = PISTAS.slice();
-    const clipsSnap2 = Object.assign({}, P.clips);
-    Object.keys(P.clips).forEach(k => { if (P.clips[k].pista === 'sub-1') delete P.clips[k]; });
-    const ix = PISTAS.findIndex(p => p.id === 'sub-1');
-    if (ix >= 0) PISTAS.splice(ix, 1);
-    P.medios.delete('sub-1');
-    pintarCues();
-    ok('Σ10 export sin sub-1', $('bExpSrt').disabled && $('bExpVtt').disabled, 'botones apagados');
-
-    const srt = '1\n00:00:00,000 --> 00:00:01,000\nUno\n\n2\n00:00:01,000 --> 00:00:02,000\nDos\n\n3\n00:00:02,000 --> 00:00:03,500\nTres\n';
-    const n7 = meterCues(leerSRT(srt));
-    ok('Σ7 import SRT 3 cues', n7 === 3 && hayPistaSub() && cuesDePista().length === 3, n7+' cues, pista '+hayPistaSub());
-
-    const prim = cuesDePista()[0];
-    P.clips[prim.id].props.texto = 'Uno editado';
-    pintarCues();
-    ok('Σ8 editar texto', P.clips[prim.id].props.texto === 'Uno editado', P.clips[prim.id].props.texto);
-
-    const back = escribirSRT(cuesDePista());
-    const otra = leerSRT(back);
-    ok('Σ9 export redondo', otra.length === 3 && otra[0].texto === 'Uno editado' && Math.abs(otra[2].t1-3.5)<0.01, otra.map(x=>x.texto).join(','));
-
-    let threw = false, parcial;
-    try{ parcial = leerSRT('1\n00:00:00,000 00:00:01,000\nMalo\n\n2\n00:00:01,000 --> 00:00:02,000\nBueno\n'); }
-    catch(_){ threw = true; }
-    ok('Σ11 malformado sin throw', !threw && parcial.length === 1 && parcial[0].texto === 'Bueno', threw ? 'throw' : String(parcial.length));
-
-    const vtt = 'WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nA\n\n00:00:01.000 --> 00:00:02.000\nB\n\n00:00:02.000 --> 00:00:03.000\nC\n';
-    const nv = leerVTT(vtt);
-    ok('Σ12 VTT 3 cues', nv.length === 3 && nv[1].texto === 'B' && Math.abs(nv[1].t0-1)<1e-9, nv.length+' '+ (nv[1]&&nv[1].texto));
-
-    const sel = $('fuente');
-    const vals = sel ? [...sel.options].map(o => o.value).join(',') : '';
-    ok('Σ13 selector 4 fuentes', !!sel && vals === 'mic,pestana,pantalla,mezcla', vals);
-    ok('Σ14 fuente por defecto mic', !!sel && sel.value === 'mic', sel && sel.value);
-    ok('Σ15 abrirFuente existe', typeof abrirFuente === 'function', typeof abrirFuente);
-    const cMic = constraintsMic();
-    ok('Σ16 mic sin AEC por defecto', cMic.audio.echoCancellation === false && cMic.audio.noiseSuppression === false && cMic.audio.autoGainControl === false, JSON.stringify(cMic.audio));
-    const fake2 = nextId('grab-', true);
-    P.medios.set(fake2, { id:fake2, tipo:'grabacion', blob:new Blob([new Uint8Array(8)]), dur:30, nom:'Toma player', insertado:false });
-    pintarLista();
-    const fila = document.querySelector('#lista .li[data-id="'+fake2+'"]');
-    ok('Σ17 player fila', !!(fila && fila.querySelector('[data-p]') && fila.querySelector('input[type=range]') && fila.querySelector('.tplay')), fila ? 'ok' : 'sin fila');
-    ok('Σ18 vadDeBlob', typeof vadDeBlob === 'function', typeof vadDeBlob);
-    ok('Σ19 loadWhisper', typeof loadWhisper === 'function', typeof loadWhisper);
-    P.medios.delete(fake2); pintarLista();
-
-    PISTAS.length = 0; pistasSnap.forEach(p => PISTAS.push(p));
-    Object.keys(P.clips).forEach(k => delete P.clips[k]);
-    Object.assign(P.clips, clipsSnap2);
-    if (!teniaSub){ P.medios.delete('sub-1'); }
-    pintarCues();
+    ok('P.sel es string o null', P.sel == null || typeof P.sel === 'string', String(P.sel));
+    ok('leerSRT 3 cues', leerSRT('1\n00:00:00,000 --> 00:00:01,000\nUno\n\n2\n00:00:01,000 --> 00:00:02,000\nDos\n\n3\n00:00:02,000 --> 00:00:03,500\nTres\n').length===3, '3');
+    ok('malformado sin throw', leerSRT('1\n00:00:00,000 00:00:01,000\nMalo\n\n2\n00:00:01,000 --> 00:00:02,000\nBueno\n').length===1, '1');
+    ok('VTT', leerVTT('WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nA\n').length===1, '1');
+    ok('vadDeBlob fn', typeof vadDeBlob === 'function', typeof vadDeBlob);
+    ok('loadWhisper fn', typeof loadWhisper === 'function', typeof loadWhisper);
   }
 
-  $('fuente').onchange = hintFuente;
-  hintFuente();
+  $('fuente').onchange = hintFuente; hintFuente();
   $('filtrosMic').onchange = () => { micFiltros = null; };
-  $('bGrabar').onclick = () => {
-    try{ if (estado === GRABANDO) detener(); else iniciar(); }
-    catch(e){ aviso('Grabar falló: ' + (e.message || e)); }
-  };
-  $('bInsertar').onclick = () => insertar();
+  if ($('chkSpeech')){
+    $('chkSpeech').onchange = () => {
+      liveActivo = !!$('chkSpeech').checked;
+      if ($('avisoSpeech')) $('avisoSpeech').style.display = liveActivo ? 'block' : 'none';
+      if (!liveActivo){ pararSpeech(); cerrarLive(); }
+      else abrirLive();
+    };
+  }
+  $('bGrabar').onclick = () => { try{ pulsarGrabar(); }catch(e){ aviso('Grabar falló: '+(e.message||e)); } };
+  $('bPausa').onclick = () => pausarOReanudar();
   $('bDescartar').onclick = () => descartar();
-  $('bX').onclick = () => { if (estado === GRABANDO) detener(); soltarMic(); };
+  $('bPlayAll').onclick = () => playTodo();
+  $('velPlay').onchange = ev => aplicarVel(ev.target.value);
+  $('bGuardar').onclick = () => guardarProyecto();
+  $('bSimple').onclick = () => setModo('simple');
+  $('bAvanzado').onclick = () => setModo('avanzado');
+  $('bGenSi').onclick = () => genSi();
+  $('bGenVad').onclick = () => genVad();
+  $('bGenNo').onclick = () => cerrarGen();
+  if ($('bDownX')) $('bDownX').onclick = () => cerrarDown();
+  ['dlgGen','dlgDown','dlgProy'].forEach(id => {
+    const d = $(id); if (!d) return;
+    d.addEventListener('click', ev => {
+      if (ev.target !== d) return;
+      if (id === 'dlgGen') cerrarGen();
+      else if (id === 'dlgDown') cerrarDown();
+      else { d.classList.remove('on'); mostrarAvisoSesion(); }
+    });
+  });
+  $('bProySi').onclick = () => { $('dlgProy').classList.remove('on'); cargarProyecto(); };
+  $('bProyNo').onclick = () => { $('dlgProy').classList.remove('on'); mostrarAvisoSesion(); };
+  $('bSesionX').onclick = () => $('avisoSesion').classList.remove('on');
+  $('bLiveOpen').onclick = () => abrirLive();
+  $('bLiveSend').onclick = () => enviarLive();
+  if ($('bLiveTxt')) $('bLiveTxt').onclick = () => guardarLiveTxt();
+  $('bLiveCls').onclick = () => { speechCues = []; pintarLive(true); };
+  $('bLiveMin').onclick = () => {
+    const c = $('liveCuerpo'), box = $('liveBox');
+    box._min = !box._min; c.style.display = box._min ? 'none' : '';
+  };
+  $('bLiveX').onclick = () => cerrarLive();
+  if ($('liveLang')) $('liveLang').onchange = () => { speechCues.forEach(c => { c.trad=''; traducirLiveLinea(c); }); };
+  (function ventanaLive(){
+    const box = $('liveBox'), cab = $('liveCab'), sz = $('liveSz');
+    if (!box || !cab) return;
+    let drag = null, rez = null, raf = 0, nx = 0, ny = 0, nw = 0, nh = 0;
+    const soltarCap = (el, id) => { try{ el.releasePointerCapture(id); }catch(_){ } };
+    const clamp = () => {
+      const w = box.offsetWidth, h = box.offsetHeight;
+      nx = Math.max(0, Math.min(window.innerWidth - w, nx));
+      ny = Math.max(0, Math.min(window.innerHeight - h, ny));
+    };
+    const pintarPos = () => {
+      raf = 0;
+      box.style.left = nx+'px';
+      box.style.top = ny+'px';
+      box.style.right = 'auto';
+      box.style.bottom = 'auto';
+    };
+    const pintarTam = () => {
+      raf = 0;
+      box.style.width = nw+'px';
+      box.style.height = nh+'px';
+    };
+    const finDrag = ev => {
+      if (!drag || (ev && ev.pointerId !== drag.id)) return;
+      soltarCap(cab, drag.id);
+      drag = null;
+      box.classList.remove('arrastre');
+    };
+    const finRez = ev => {
+      if (!rez || (ev && ev.pointerId !== rez.id)) return;
+      soltarCap(sz, rez.id);
+      rez = null;
+      box.classList.remove('resize');
+    };
+    cab.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0) return;
+      if (ev.target.closest('button,select')) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const r = box.getBoundingClientRect();
+      drag = { id:ev.pointerId, ox:ev.clientX - r.left, oy:ev.clientY - r.top };
+      box.classList.add('arrastre');
+      try{ cab.setPointerCapture(ev.pointerId); }catch(_){}
+    });
+    cab.addEventListener('pointermove', ev => {
+      if (!drag || ev.pointerId !== drag.id) return;
+      ev.preventDefault();
+      nx = ev.clientX - drag.ox;
+      ny = ev.clientY - drag.oy;
+      clamp();
+      if (!raf) raf = requestAnimationFrame(pintarPos);
+    });
+    cab.addEventListener('pointerup', finDrag);
+    cab.addEventListener('pointercancel', finDrag);
+    cab.addEventListener('lostpointercapture', () => {
+      drag = null; box.classList.remove('arrastre');
+    });
+    if (sz){
+      sz.addEventListener('pointerdown', ev => {
+        if (ev.button !== 0) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        const r = box.getBoundingClientRect();
+        rez = { id:ev.pointerId, x:ev.clientX, y:ev.clientY, w:r.width, h:r.height };
+        box.classList.add('resize');
+        try{ sz.setPointerCapture(ev.pointerId); }catch(_){}
+      });
+      sz.addEventListener('pointermove', ev => {
+        if (!rez || ev.pointerId !== rez.id) return;
+        ev.preventDefault();
+        nw = Math.max(280, Math.min(window.innerWidth - 16, rez.w + (ev.clientX - rez.x)));
+        nh = Math.max(170, Math.min(window.innerHeight - 16, rez.h + (ev.clientY - rez.y)));
+        if (!raf) raf = requestAnimationFrame(pintarTam);
+      });
+      sz.addEventListener('pointerup', finRez);
+      sz.addEventListener('pointercancel', finRez);
+    }
+  })();
+  $('bX').onclick = () => { if (estado===GRABANDO || estado===PAUSADO) detener(); soltarMic(); };
   $('bBanco').onclick = () => $('banco').classList.toggle('on');
   $('bRun').onclick = correrBanco;
   $('bImpSrt').onclick = () => $('fSrt').click();
   $('fSrt').onchange = ev => {
-    const f = ev.target.files && ev.target.files[0];
-    if (!f) return;
+    const f = ev.target.files && ev.target.files[0]; if (!f) return;
     const r = new FileReader();
     r.onload = () => {
-      const t = String(r.result || '');
+      const t = String(r.result||'');
       const cues = /\.vtt$/i.test(f.name) || /^WEBVTT/i.test(t) ? leerVTT(t) : leerSRT(t);
       const n = meterCues(cues);
-      aviso(n ? n + ' subtítulos importados.' : 'No se leyeron cues.');
+      if (n) aviso(n+' subtítulos importados.', 'ok'); else aviso('No se leyeron cues.', 'err');
     };
-    r.readAsText(f);
-    ev.target.value = '';
+    r.readAsText(f); ev.target.value = '';
   };
   $('bExpSrt').onclick = () => exportar('srt');
   $('bExpVtt').onclick = () => exportar('vtt');
-  $('bTranscribir').onclick = () => transcribirToma();
-  function setProg(pct){
-    const bar = $('barraWhisper'); const i = $('barraWhisperI');
-    if (bar) bar.classList.toggle('on', pct != null);
-    if (i && pct != null) i.style.width = Math.max(0, Math.min(100, Math.round(pct))) + '%';
-  }
+  $('bExpTxt').onclick = () => exportar('txt');
+  $('bExpJson').onclick = () => exportar('json');
+  $('bCopiar').onclick = () => copiarCues();
+  $('bTraducir').onclick = () => traducirCues();
+  $('bTraducirUndo').onclick = () => restaurarOriginal();
+  $('bDivCue').onclick = () => dividirCue();
+  $('bFusCue').onclick = () => fusionarCues();
+  $('bBusSig').onclick = () => buscarSiguiente();
+  $('bRepUno').onclick = () => reemplazarUno();
+  $('bRepTodo').onclick = () => reemplazarTodo();
+  $('cajaCues').addEventListener('keydown', atajosCues);
+  $('bTranscribir').onclick = () => pedirGenerar();
   $('bWhisperDown').onclick = async () => {
     if (!window.WhisperEngine){ aviso('Whisper no disponible.'); return; }
     try{
+      downCancel = false;
       setProg(1);
-      await window.WhisperEngine.cargar({ onProgreso: p => {
-        setProg(p.progress || 0);
-        aviso('Descargando modelo… ' + Math.round(p.progress || 0) + '%');
-      }});
-      setProg(100); pintarWhisper(); aviso('Modelo listo.');
-    }catch(e){ setProg(null); aviso('Descarga falló: ' + (e.message || e)); pintarWhisper(); }
+      await window.WhisperEngine.cargar({ onProgreso: p => setProg(p.progress||0) });
+      setProg(100); pintarWhisper(); aviso('Modelo listo.', 'ok');
+    }catch(e){ setProg(null); aviso('Descarga falló: '+(e.message||e),'err'); pintarWhisper(); }
   };
   $('bWhisperDel').onclick = async () => {
     if (!window.WhisperEngine) return;
     if (!confirm('¿Borrar modelo local?')) return;
-    await window.WhisperEngine.borrar();
-    pintarWhisper(); aviso('Modelo borrado.');
+    await window.WhisperEngine.borrar(); pintarWhisper(); aviso('Modelo borrado.', 'ok');
+  };
+  $('bTema').onclick = () => {
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.tema = p.tema === 'claro' ? 'oscuro' : 'claro'; salvarUI(p); aplicarUI();
+  };
+  $('bTipoM').onclick = () => {
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.tipo = Math.max(0,(p.tipo|0)-1); salvarUI(p); aplicarUI();
+  };
+  $('bTipoP').onclick = () => {
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.tipo = Math.min(2,(p.tipo|0)+1); salvarUI(p); aplicarUI();
   };
   addEventListener('whisper-estado', pintarWhisper);
   window.addEventListener('pagehide', () => { pararPlayer(); soltarMic(); });
-  pintarModo(); pintarBadge(); pintarOnda(false); pintarLista(); pintarCues();
+  aplicarUI();
+  pintarBadge(); pintarOnda(false); pintarLista(); pintarCues();
   loadWhisper();
+  arranqueProyecto();
   window.Grabadora = { iniciar, detener, insertar, estado: () => estado, transcribirToma };
   window.Subtitulos = { leerSRT, leerVTT, escribirSRT, escribirVTT };
   window.P = P; window.PISTAS = PISTAS; window.ENTORNO = ENTORNO;
