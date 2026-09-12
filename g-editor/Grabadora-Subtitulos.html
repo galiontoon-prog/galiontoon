@@ -121,14 +121,35 @@ html.modo-simple .li [data-w]{display:none}
 #liveBox .cab{display:flex;align-items:center;gap:6px;padding:16px 10px 8px;cursor:grab;font-size:12px;font-weight:700;background:#22222e;border-radius:12px 12px 0 0;position:relative;flex:0 0 auto}
 #liveBox .cab::before{content:"";position:absolute;top:7px;left:50%;width:40px;height:3px;border-radius:2px;background:#3d3d4e;transform:translateX(-50%);pointer-events:none}
 #liveBox.arrastre .cab{cursor:grabbing}
-#liveBox .cab select{flex:0 0 48px;height:24px;padding:0 4px;font-size:11px;font-weight:700;border-radius:8px;border:1px solid var(--borde2);background:var(--ctl);cursor:pointer}
+#liveBox .cab select{height:24px;padding:0 4px;font-size:11px;font-weight:700;border-radius:8px;border:1px solid var(--borde2);background:var(--ctl);cursor:pointer}
+#liveBox .cab .par{display:flex;align-items:center;gap:4px;flex:0 0 auto}
+#liveBox .cab .par select{width:52px;flex:0 0 52px}
+#liveBox .cab #bLiveSwap{width:24px;height:24px;border-radius:7px;color:#9a9aaa;font-size:14px}
+#liveBox .cab #bLiveSwap:hover{color:#fff;background:#2c2c3a}
 #liveBox .cab button{height:24px;width:24px;padding:0;border:0;background:transparent;color:var(--secu);font-size:16px;cursor:pointer}
 #liveBox .cab #bLiveGear{width:26px;height:26px;font-size:15px;border-radius:7px;color:#9a9aaa}
 #liveBox .cab #bLiveGear:hover,#liveBox.menu-on #bLiveGear{color:#fff;background:#2c2c3a}
-#liveMenu{display:none;position:absolute;top:calc(100% + 6px);right:8px;width:236px;background:#16161e;border:1px solid #2a2a36;border-radius:10px;padding:4px;z-index:60;box-shadow:0 18px 40px #000000cc,0 0 0 1px #ffffff08;animation:liveMenuIn .12s ease-out}
+#liveMenu{display:none;position:absolute;top:0;right:100%;margin-right:10px;width:220px;background:#16161e;border:1px solid #2a2a36;border-radius:10px;padding:4px;z-index:60;box-shadow:0 18px 40px #000000cc,0 0 0 1px #ffffff08;animation:liveMenuIn .12s ease-out}
 #liveBox.menu-on #liveMenu{display:block}
-@keyframes liveMenuIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes liveMenuIn{from{opacity:0;transform:translateX(6px)}to{opacity:1;transform:none}}
 #liveMenu .cap{padding:8px 10px 4px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6a6a7a}
+#liveMenu .posGrid{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:2px 8px 8px}
+#liveMenu .posGrid button{height:38px;border:1px solid #2a2a36;border-radius:8px;background:#111118;color:#8a8a9a;cursor:pointer;padding:0}
+#liveMenu .posGrid button:hover{background:#1e1e28;color:#fff;border-color:#3a3a4a}
+#liveMenu .posGrid button.on{background:#00ff8814;border-color:#00ff8866;color:var(--verde)}
+#liveBox .icoSvg{display:block;margin:0 auto;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#liveBox .icoSvg .fill{fill:currentColor;stroke:none}
+#liveMenu .posGrid button svg{width:22px;height:18px}
+#liveMenu .posGrid button svg .marco{fill:none;stroke:currentColor;stroke-width:1.7}
+#liveMenu .posGrid button svg .bar{fill:currentColor;opacity:.35}
+#liveMenu .posGrid button svg .pip{fill:currentColor;stroke:none}
+#liveBox .cab button svg,#liveBox .cab button i{width:15px;height:15px;display:block;margin:0 auto}
+#liveMenu .posGrid button svg,#liveMenu .posGrid button i{width:18px;height:18px;display:block;margin:0 auto}
+#liveMenu .item .ico svg,#liveMenu .item .ico i{width:15px;height:15px;display:block;margin:0 auto}
+#liveBox svg.lucide{stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+#liveBox .cab #bLiveTrad.off{color:#555566}
+#liveBox .cab #bLiveTrad.off .lin2{opacity:.22}
+#liveMenu .item .ico svg{width:15px;height:15px}
 #liveMenu .item{display:flex;align-items:center;gap:10px;width:100%;height:32px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:#ececf4;font-size:13px;font-weight:500;text-align:left;cursor:pointer;letter-spacing:.01em}
 #liveMenu .item:hover{background:#22222e}
 #liveMenu .item:active{background:#1e1e28}
@@ -417,16 +438,38 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     <div class="cab" id="liveCab">
       <span>🎙 Subtítulos en vivo</span>
       <span class="grow"></span>
-      <button type="button" id="bLiveGear" title="Ajustes">⚙</button>
-      <button type="button" id="bLiveMin" title="Minimizar">−</button>
-      <button type="button" id="bLiveX" title="Cerrar">×</button>
+      <span class="par" title="Hablo → se traduce a">
+        <select id="liveSrc" title="Idioma que hablo">
+          <option value="es" selected>ES</option>
+          <option value="en">EN</option>
+          <option value="fr">FR</option>
+          <option value="pt">PT</option>
+          <option value="it">IT</option>
+          <option value="de">DE</option>
+        </select>
+        <button type="button" id="bLiveSwap" title="Intercambiar idiomas"><i data-lucide="arrow-left-right"></i></button>
+        <select id="liveDst" title="Traducir a">
+          <option value="es">ES</option>
+          <option value="en" selected>EN</option>
+          <option value="fr">FR</option>
+          <option value="pt">PT</option>
+          <option value="it">IT</option>
+          <option value="de">DE</option>
+        </select>
+      </span>
+      <button type="button" id="bLiveTrad" title="Ocultar subtítulo de abajo" aria-pressed="true"><i data-lucide="captions"></i></button>
+      <button type="button" id="bLiveGear" title="Ajustes"><i data-lucide="settings-2"></i></button>
+      <button type="button" id="bLiveMin" title="Minimizar"><i data-lucide="minus"></i></button>
+      <button type="button" id="bLiveX" title="Cerrar"><i data-lucide="x"></i></button>
     </div>
     <div id="liveMenu">
       <div class="cap">Posición</div>
-      <button type="button" class="item" data-pos="br"><span class="ico">↘</span> Abajo a la derecha</button>
-      <button type="button" class="item" data-pos="bl"><span class="ico">↙</span> Abajo a la izquierda</button>
-      <button type="button" class="item" data-pos="tr"><span class="ico">↗</span> Arriba a la derecha</button>
-      <button type="button" class="item" data-pos="tl"><span class="ico">↖</span> Arriba a la izquierda</button>
+      <div class="posGrid">
+        <button type="button" data-pos="tl" title="Arriba izquierda"><i data-lucide="panel-top"></i></button>
+        <button type="button" data-pos="tr" title="Arriba derecha"><i data-lucide="panel-right"></i></button>
+        <button type="button" data-pos="bl" title="Abajo izquierda"><i data-lucide="panel-left"></i></button>
+        <button type="button" data-pos="br" title="Abajo derecha" class="on"><i data-lucide="panel-bottom"></i></button>
+      </div>
       <div class="sep"></div>
       <div class="cap">Idioma</div>
       <div class="bloque">
@@ -454,11 +497,12 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       <div class="cap">Preferencias</div>
       <div class="bloque">
         <label class="chkL"><input type="checkbox" id="chkLiveTiempos" checked> Mostrar tiempos</label>
+        <label class="chkL"><input type="checkbox" id="chkLiveTrad" checked> Subtítulo de abajo</label>
         <label class="chkL"><input type="checkbox" id="chkLivePriv" checked> Aviso de privacidad</label>
       </div>
       <div class="sep"></div>
-      <button type="button" class="item" id="bLiveGestId"><span class="ico">☁</span> Gestionar idiomas</button>
-      <button type="button" class="item" id="bLiveInfo"><span class="ico">?</span> Más información</button>
+      <button type="button" class="item" id="bLiveGestId"><span class="ico"><i data-lucide="languages"></i></span> Gestionar idiomas</button>
+      <button type="button" class="item" id="bLiveInfo"><span class="ico"><i data-lucide="info"></i></span> Más información</button>
     </div>
     <p class="priv" id="livePriv">El audio del reconocimiento sale del equipo.<br>La traducción es local.</p>
     <div class="cuerpo" id="liveCuerpo"></div>
@@ -514,6 +558,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
 <script>
 window.Grabadora = null;
 (function(){
@@ -1573,7 +1618,15 @@ window.Grabadora = null;
   function SRClass(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
   function speechOn(){ return liveActivo || !!( $('chkSpeech') && $('chkSpeech').checked ); }
   function ahoraRec(){ return (estado === GRABANDO && ctx) ? Math.max(0, ctx.currentTime - t0) : (dur||0); }
+  let liveCap = { proc:null, gain:null, src:null, buf:[], busy:false };
+  function pararLiveCap(){
+    try{ if (liveCap.proc) liveCap.proc.disconnect(); }catch(_){}
+    try{ if (liveCap.gain) liveCap.gain.disconnect(); }catch(_){}
+    try{ if (liveCap.src) liveCap.src.disconnect(); }catch(_){}
+    liveCap = { proc:null, gain:null, src:null, buf:[], busy:false };
+  }
   function pararSpeech(){
+    pararLiveCap();
     if (!speechRec) return;
     try{ speechRec.onresult = null; speechRec.onerror = null; speechRec.onend = null; speechRec.stop(); }catch(_){}
     speechRec = null;
@@ -1588,21 +1641,39 @@ window.Grabadora = null;
     if (box._min) cuerpo.style.display = 'none'; else cuerpo.style.display = '';
     const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
     const verT = !$('chkLiveTiempos') || $('chkLiveTiempos').checked;
+    const verB = !$('chkLiveTrad') || $('chkLiveTrad').checked;
     cuerpo.innerHTML = speechCues.map(c =>
       '<div class="fra">'+(verT ? '<span class="ts">['+mmss(c.t0)+']</span>' : '')+'<span class="orig">'+esc(c.texto)+'</span>'+
-      (c.trad ? '<span class="trad">'+esc(c.trad)+'</span>' : '')+'</div>'
-    ).join('') + (inter ? '<div class="fra">'+(verT ? '<span class="ts"></span>' : '')+'<span class="trad">… '+esc(inter)+'</span></div>' : '');
+      (verB && c.trad ? '<span class="trad">'+esc(c.trad)+'</span>' : '')+'</div>'
+    ).join('') + (inter ? '<div class="fra">'+(verT ? '<span class="ts"></span>' : '')+'<span class="'+(verB?'trad':'orig')+'">… '+esc(inter)+'</span></div>' : '');
     cuerpo.scrollTop = cuerpo.scrollHeight;
   }
+  function livePar(){
+    const src = (($('liveSrc')||{}).value) || 'es';
+    const dst = (($('liveDst')||{}).value) || (($('liveLang')||{}).value) || 'en';
+    return { src, dst };
+  }
+  function langSpeech(code){
+    return ({ es:'es-ES', en:'en-US', fr:'fr-FR', pt:'pt-BR', it:'it-IT', de:'de-DE' })[code] || 'es-ES';
+  }
+  function syncLiveIdiomaUI(){
+    const p = livePar();
+    if ($('liveLang') && $('liveLang').value !== p.dst) $('liveLang').value = p.dst;
+    if ($('liveDst') && $('liveLang') && $('liveDst').value !== $('liveLang').value) {
+      /* liveDst manda */
+    }
+    if ($('liveIdiomaWh') && $('liveSrc')) $('liveIdiomaWh').value = $('liveSrc').value;
+  }
   async function traducirLiveLinea(cue){
-    const dst = ($('liveLang')||{}).value || '';
-    if (!dst || !apiTraductor() || !cue || !cue.texto) return;
+    if (!cue || !cue.texto) return;
+    const { src, dst } = livePar();
+    if (!dst || src === dst){ cue.trad = ''; pintarLive(); return; }
+    if (!apiTraductor()){ cue.trad = ''; pintarLive(); return; }
     try{
-      const src = 'es';
-      if (src === dst){ cue.trad = cue.texto; pintarLive(); return; }
       const tr = await sesionTrad(src, dst);
+      if (!tr) return;
       cue.trad = await tr.translate(cue.texto); pintarLive();
-    }catch(_){}
+    }catch(_){ cue.trad = ''; pintarLive(); }
   }
   function enviarLive(){
     if (!speechCues.length){ aviso('No hay líneas que enviar.', 'info'); return; }
@@ -1642,12 +1713,91 @@ window.Grabadora = null;
     if ($('liveBox')) $('liveBox').classList.remove('on');
     if ($('bLiveOpen')) $('bLiveOpen').classList.remove('on');
   }
+  function meterLiveTexto(texto){
+    texto = String(texto || '').trim();
+    if (!texto) return;
+    const t1 = ahoraRec(), t0s = Math.max(0, speechT0);
+    const cue = { t0:t0s, t1:Math.max(t0s+0.4, t1), texto, trad:'' };
+    speechCues.push(cue); speechT0 = Math.max(t0s+0.4, t1);
+    traducirLiveLinea(cue);
+    pintarLive();
+  }
+  function wavDePcm(pcm, sr){
+    const n = pcm.length;
+    const buf = new ArrayBuffer(44 + n * 2);
+    const v = new DataView(buf);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0,'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8,'WAVE'); w(12,'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36,'data'); v.setUint32(40, n * 2, true);
+    let o = 44;
+    for (let i = 0; i < n; i++){
+      const s = Math.max(-1, Math.min(1, pcm[i]));
+      v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true); o += 2;
+    }
+    return new Blob([buf], { type:'audio/wav' });
+  }
+  async function flushLiveCap(){
+    if (liveCap.busy || !liveCap.buf.length) return;
+    liveCap.busy = true;
+    const piezas = liveCap.buf; liveCap.buf = [];
+    try{
+      const sr = (ctx && ctx.sampleRate) || 48000;
+      let n = 0; for (let i = 0; i < piezas.length; i++) n += piezas[i].length;
+      const pcm = new Float32Array(n);
+      let o = 0;
+      for (let i = 0; i < piezas.length; i++){ pcm.set(piezas[i], o); o += piezas[i].length; }
+      let e = 0;
+      for (let i = 0; i < pcm.length; i += 64) e += pcm[i] * pcm[i];
+      if (e / Math.max(1, pcm.length / 64) < 1e-6) return;
+      const eng = window.WhisperEngine;
+      if (!eng || !eng.transcribir || (eng.estado && eng.estado() !== 'listo')) return;
+      const r = await eng.transcribir(wavDePcm(pcm, sr), { idioma: livePar().src });
+      const segs = (r && r.segmentos) || [];
+      const txt = segs.map(s => s.texto).join(' ').trim();
+      if (txt) meterLiveTexto(txt);
+    }catch(_){}
+    finally { liveCap.busy = false; }
+  }
+  function arrancarLiveCap(){
+    pararLiveCap();
+    if (!ctx || !streamToma) return false;
+    try{
+      liveCap.src = ctx.createMediaStreamSource(streamToma);
+      liveCap.proc = ctx.createScriptProcessor(4096, 1, 1);
+      liveCap.gain = ctx.createGain(); liveCap.gain.gain.value = 0;
+      liveCap.src.connect(liveCap.proc);
+      liveCap.proc.connect(liveCap.gain);
+      liveCap.gain.connect(ctx.destination);
+      liveCap.buf = [];
+      liveCap.proc.onaudioprocess = ev => {
+        if (estado !== GRABANDO) return;
+        liveCap.buf.push(new Float32Array(ev.inputBuffer.getChannelData(0)));
+        let n = 0; for (let i = 0; i < liveCap.buf.length; i++) n += liveCap.buf[i].length;
+        if (n >= ((ctx.sampleRate || 48000) * 2.6) && !liveCap.busy) flushLiveCap();
+      };
+      return true;
+    }catch(_){ pararLiveCap(); return false; }
+  }
   function arrancarSpeech(){
     pararSpeech();
-    const C = SRClass(); if (!C || !speechOn()) return;
+    if (!speechOn()) return;
     speechT0 = ahoraRec();
+    const captura = fuenteActiva && fuenteActiva !== 'mic';
+    if (captura){
+      const ok = arrancarLiveCap();
+      const listo = window.WhisperEngine && window.WhisperEngine.estado && window.WhisperEngine.estado() === 'listo';
+      if (ok && listo){
+        if ($('livePriv')) $('livePriv').textContent = 'Pestaña/pantalla: el texto sale del audio capturado (Whisper, local).';
+        return;
+      }
+      if ($('livePriv')) $('livePriv').textContent = 'El reconocimiento del navegador solo oye el micrófono. En pestaña/pantalla descarga Whisper o marca «Compartir audio».';
+    }
+    const C = SRClass(); if (!C) return;
     const r = new C();
-    r.lang = 'es-ES'; r.continuous = true; r.interimResults = true;
+    r.lang = langSpeech(livePar().src);
+    r.continuous = true; r.interimResults = true;
     r.onresult = ev => {
       let inter = '';
       for (let i = ev.resultIndex; i < ev.results.length; i++){
@@ -1655,15 +1805,12 @@ window.Grabadora = null;
         const texto = String(res[0] && res[0].transcript || '').trim();
         if (!texto) continue;
         if (!res.isFinal){ inter = texto; continue; }
-        const t1 = ahoraRec(), t0s = Math.max(0, speechT0);
-        const cue = { t0:t0s, t1:Math.max(t0s+0.4, t1), texto, trad:'' };
-        speechCues.push(cue); speechT0 = Math.max(t0s+0.4, t1);
-        traducirLiveLinea(cue);
+        meterLiveTexto(texto);
       }
       pintarLive(false, inter);
     };
     r.onerror = ev => { if (ev.error === 'not-allowed') aviso('Permiso de reconocimiento denegado.', 'err'); };
-    r.onend = () => { if (estado === GRABANDO && speechOn()){ try{ r.start(); }catch(_){} } };
+    r.onend = () => { if (estado === GRABANDO && speechOn() && fuenteActiva === 'mic'){ try{ r.start(); }catch(_){} } };
     speechRec = r;
     try{ r.start(); }catch(e){ aviso('Reconocimiento no arrancó: '+(e.message||e), 'err'); }
   }
@@ -2356,13 +2503,47 @@ window.Grabadora = null;
     box._min = !box._min; c.style.display = box._min ? 'none' : '';
   };
   $('bLiveX').onclick = () => cerrarLive();
-  if ($('liveLang')) $('liveLang').onchange = () => { speechCues.forEach(c => { c.trad=''; traducirLiveLinea(c); }); };
+  function aplicarParLive(reiniciar){
+    syncLiveIdiomaUI();
+    speechCues.forEach(c => { c.trad = ''; traducirLiveLinea(c); });
+    if (reiniciar && estado === GRABANDO && speechOn()) arrancarSpeech();
+  }
+  if ($('liveLang')) $('liveLang').onchange = () => {
+    if ($('liveDst')) $('liveDst').value = $('liveLang').value;
+    aplicarParLive(false);
+  };
+  if ($('liveSrc')) $('liveSrc').onchange = () => aplicarParLive(true);
+  if ($('liveDst')) $('liveDst').onchange = () => {
+    if ($('liveLang')) $('liveLang').value = $('liveDst').value;
+    aplicarParLive(false);
+  };
+  if ($('bLiveSwap')) $('bLiveSwap').onclick = ev => {
+    ev.stopPropagation();
+    const a = $('liveSrc'), b = $('liveDst');
+    if (!a || !b) return;
+    const t = a.value; a.value = b.value; b.value = t;
+    if ($('liveLang')) $('liveLang').value = b.value;
+    aplicarParLive(true);
+  };
   function cerrarMenuLive(){ const b = $('liveBox'); if (b) b.classList.remove('menu-on'); }
   function abrirMenuLive(ev){
     if (ev) ev.stopPropagation();
     const b = $('liveBox'); if (!b) return;
     b.classList.toggle('menu-on');
     if ($('liveIdiomaWh') && $('selIdiomaWh')) $('liveIdiomaWh').value = $('selIdiomaWh').value;
+    const menu = $('liveMenu');
+    if (menu && b.classList.contains('menu-on')){
+      const poco = b.getBoundingClientRect().left < 240;
+      menu.style.left = poco ? '100%' : 'auto';
+      menu.style.right = poco ? 'auto' : '100%';
+      menu.style.marginLeft = poco ? '10px' : '0';
+      menu.style.marginRight = poco ? '0' : '10px';
+    }
+  }
+  function marcarPosLive(donde){
+    document.querySelectorAll('#liveMenu [data-pos]').forEach(b => {
+      b.classList.toggle('on', b.getAttribute('data-pos') === donde);
+    });
   }
   function posLive(donde){
     const box = $('liveBox'); if (!box) return;
@@ -2371,7 +2552,15 @@ window.Grabadora = null;
     else if (donde === 'tr'){ box.style.right = '16px'; box.style.top = '16px'; }
     else if (donde === 'tl'){ box.style.left = '16px'; box.style.top = '16px'; }
     else { box.style.right = '16px'; box.style.bottom = '16px'; }
-    cerrarMenuLive();
+    marcarPosLive(donde);
+    const menu = $('liveMenu');
+    if (menu){
+      const poco = box.getBoundingClientRect().left < 240;
+      menu.style.left = poco ? '100%' : 'auto';
+      menu.style.right = poco ? 'auto' : '100%';
+      menu.style.marginLeft = poco ? '10px' : '0';
+      menu.style.marginRight = poco ? '0' : '10px';
+    }
   }
   if ($('bLiveGear')) $('bLiveGear').onclick = ev => { ev.stopPropagation(); abrirMenuLive(ev); };
   if ($('liveMenu')){
@@ -2390,6 +2579,26 @@ window.Grabadora = null;
     if ($('chkTiempos')) $('chkTiempos').checked = $('chkLiveTiempos').checked;
     pintarLive(true);
   };
+  function syncBtnTrad(){
+    const on = !$('chkLiveTrad') || $('chkLiveTrad').checked;
+    const b = $('bLiveTrad');
+    if (b){
+      b.classList.toggle('off', !on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.title = on ? 'Ocultar subtítulo de abajo' : 'Mostrar subtítulo de abajo';
+    }
+  }
+  function setLiveTrad(on){
+    if ($('chkLiveTrad')) $('chkLiveTrad').checked = !!on;
+    syncBtnTrad();
+    pintarLive(true);
+  }
+  if ($('chkLiveTrad')) $('chkLiveTrad').onchange = () => setLiveTrad($('chkLiveTrad').checked);
+  if ($('bLiveTrad')) $('bLiveTrad').onclick = ev => {
+    ev.stopPropagation();
+    const on = !($('chkLiveTrad') && $('chkLiveTrad').checked);
+    setLiveTrad(on);
+  };
   if ($('chkLivePriv')) $('chkLivePriv').onchange = () => {
     const box = $('liveBox');
     if (box) box.classList.toggle('sin-priv', !$('chkLivePriv').checked);
@@ -2405,7 +2614,7 @@ window.Grabadora = null;
   document.addEventListener('pointerdown', ev => {
     const box = $('liveBox');
     if (!box || !box.classList.contains('menu-on')) return;
-    if (ev.target.closest('#liveMenu') || ev.target.closest('#bLiveGear')) return;
+    if (ev.target.closest('#liveMenu') || ev.target.closest('#bLiveGear') || ev.target.closest('#bLiveTrad')) return;
     cerrarMenuLive();
   });
   (function ventanaLive(){
@@ -2543,7 +2752,15 @@ window.Grabadora = null;
     pararPlayer(); soltarMic();
     try { if (window.WhisperEngine && window.WhisperEngine.liberar) window.WhisperEngine.liberar(); } catch(_){}
   });
+  function pintarIconos(){
+    try{
+      if (window.lucide && lucide.createIcons){
+        lucide.createIcons({ attrs: { width: 15, height: 15, 'stroke-width': 1.75 } });
+      }
+    }catch(_){}
+  }
   aplicarUI();
+  pintarIconos();
   pintarBadge(); pintarOnda(false); pintarLista(); pintarCues();
   loadWhisper();
   loadDiarization();
