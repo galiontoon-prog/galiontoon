@@ -13,7 +13,7 @@
   'use strict';
 
   var MODELO_HF = 'onnx-community/pyannote-segmentation-3.0';
-  var TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2';
+  var TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/+esm';
   var TF_DIST = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/dist/';
   var HF_HOST = 'https://huggingface.co/';
   var GH_RELEASE = '';
@@ -281,6 +281,14 @@
     var out = await modelo(inputs);
     var logits = out && (out.logits || out);
     if (!logits) throw new Error('Sin logits de pyannote');
+    if (processor.post_process_speaker_diarization) {
+      var segs = processor.post_process_speaker_diarization(logits, audio.length);
+      var lista = (segs && segs[0]) || segs || [];
+      return lista.map(function (s) {
+        var id = (s.id == null ? 0 : +s.id);
+        return { t0: +s.start || 0, t1: +s.end || 0, hablante: String(id + 1) };
+      }).filter(function (t) { return t.t1 - t.t0 >= 0.12; });
+    }
     var data = logits.data || logits;
     var dims = logits.dims || [];
     var frames, clases;
@@ -325,20 +333,28 @@
     opciones = opciones || {};
     var maxK = Math.max(2, Math.min(5, +opciones.maxK || 3));
     var cues = opciones.cues || [];
+    var modo = opciones.modo || 'auto';
+    if (modo === 'ligero' || modo === 'rapido') {
+      return { turnos: await diarizarLigero(blob, cues, maxK), modo: 'ligero' };
+    }
     if (estado !== 'listo' || !modelo) {
       try { await cargar({ onProgreso: onProgreso }); }
-      catch (_) { return { turnos: await diarizarLigero(blob, cues, maxK), modo: 'ligero' }; }
+      catch (e) {
+        if (modo === 'profesional' && opciones.fallback === false) throw e;
+        return { turnos: await diarizarLigero(blob, cues, maxK), modo: 'ligero', aviso: e.message || 'fallback' };
+      }
     }
     try {
       var audio = await pcm16k(blob);
       if (!audio) throw new Error('audio');
       var turnos = await diarizarProfesional(audio);
       if (!turnos.length && cues.length) {
-        return { turnos: await diarizarLigero(blob, cues, maxK), modo: 'ligero' };
+        return { turnos: await diarizarLigero(blob, cues, maxK), modo: 'ligero', aviso: 'sin-turnos' };
       }
       return { turnos: turnos, modo: 'profesional', modelo: MODELO_HF };
-    } catch (_) {
-      return { turnos: await diarizarLigero(blob, cues, maxK), modo: 'ligero' };
+    } catch (e) {
+      if (modo === 'profesional' && opciones.fallback === false) throw e;
+      return { turnos: await diarizarLigero(blob, cues, maxK), modo: 'ligero', aviso: e.message || 'fallback' };
     }
   }
 
