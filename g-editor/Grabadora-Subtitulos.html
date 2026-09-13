@@ -413,9 +413,20 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     <p class="hint solo-adv" id="lapsoWh" style="display:none;text-align:left"></p>
     <button type="button" class="btn solo-adv" id="bGestIdiomas">Gestionar idiomas</button>
     <div id="cajaHab" class="solo-adv" hidden>
-    <label class="chk" id="labHabRap"><input type="checkbox" id="chkHabRap"> Etiquetar hablantes (rápido, sin descarga)</label>
-    <label class="chk" id="labHablantes" title="pyannote-segmentation-3.0 desde Hugging Face"><input type="checkbox" id="chkHablantes"> Etiquetar hablantes (profesional, +precisión, ~6 MB) <span id="icoHabPro" class="icoLang" title="Estado del modelo">☁️</span></label>
-    <p class="hint" style="text-align:left;margin:0 0 8px">Rápido = timbre local. Profesional = pyannote ONNX (Hugging Face, CORS ok, luego OPFS).</p>
+    <p class="tit">Etiquetar hablantes</p>
+    <label class="chk"><input type="radio" name="habVar" id="habOff" value="off" checked> Desactivado</label>
+    <label class="chk"><input type="radio" name="habVar" id="habFp16" value="fp16"> Rápido · Gran precisión</label>
+    <p class="hint" style="text-align:left;margin:0 0 6px">⚡ WebGPU · ~28 MB · ~90–95% <span id="icoFp16" class="icoLang">☁️</span></p>
+    <div class="grid2" style="margin-bottom:8px">
+      <button type="button" class="btn" id="bDownFp16">☁️ Descargar</button>
+      <button type="button" class="btn" id="bDelFp16">Borrar</button>
+    </div>
+    <label class="chk"><input type="radio" name="habVar" id="habFp32" value="fp32"> Máxima precisión · Más lento</label>
+    <p class="hint" style="text-align:left;margin:0 0 6px">🎯 WebGPU/WASM · ~31 MB · ~95–98% <span id="icoFp32" class="icoLang">☁️</span></p>
+    <div class="grid2" style="margin-bottom:8px">
+      <button type="button" class="btn" id="bDownFp32">☁️ Descargar</button>
+      <button type="button" class="btn" id="bDelFp32">Borrar</button>
+    </div>
     <div class="grid2 solo-adv" style="margin-bottom:8px">
       <select id="selMaxHab" class="btn field" title="Máximo de hablantes">
         <option value="2">Hasta 2</option>
@@ -1736,8 +1747,7 @@ window.Grabadora = null;
     document.documentElement.style.fontSize = ['13px','15px','17px'][Math.max(0, Math.min(2, p.tipo|0))] || '13px';
     if ($('bTema')) $('bTema').textContent = p.tema === 'claro' ? '☾' : '☀';
     if ($('selIdiomaWh') && p.idiomaWh) $('selIdiomaWh').value = p.idiomaWh;
-    if ($('chkHabRap') && p.habRapido != null) $('chkHabRap').checked = !!p.habRapido;
-    if ($('chkHablantes') && p.hablantesOn != null) $('chkHablantes').checked = !!p.hablantesOn;
+    setHabVar(p.habVar || 'off');
     pintarIcoHab();
     if ($('chkTiempos') && p.tiemposOn != null) $('chkTiempos').checked = !!p.tiemposOn;
     if ($('selMaxHab') && p.maxHab) $('selMaxHab').value = String(p.maxHab);
@@ -2244,27 +2254,39 @@ window.Grabadora = null;
     }
     return out;
   }
-  function habActivo(){ return !!(($('chkHabRap') && $('chkHabRap').checked) || ($('chkHablantes') && $('chkHablantes').checked)); }
-  function habModo(){ return ($('chkHablantes') && $('chkHablantes').checked) ? 'profesional' : (($('chkHabRap') && $('chkHabRap').checked) ? 'ligero' : ''); }
+  function habVar(){
+    const r = document.querySelector('input[name="habVar"]:checked');
+    return (r && r.value) || 'off';
+  }
+  function setHabVar(v){
+    const el = document.querySelector('input[name="habVar"][value="'+(v||'off')+'"]');
+    if (el) el.checked = true;
+    else if ($('habOff')) $('habOff').checked = true;
+  }
+  function habActivo(){ return habVar() === 'fp16' || habVar() === 'fp32'; }
+  function habModo(){ return habActivo() ? 'profesional' : ''; }
   async function pintarIcoHab(){
-    const ico = $('icoHabPro'); if (!ico) return;
     const eng = window.DiarizationEngine;
-    let hay = false;
-    try { hay = !!(eng && eng.hayCache && await eng.hayCache()); } catch(_){}
-    const listo = !!(eng && eng.estado && eng.estado() === 'listo');
-    ico.textContent = listo || hay ? '✅' : '☁️';
-    ico.title = listo || hay ? 'Modelo profesional en caché' : 'No descargado';
+    for (const v of ['fp16','fp32']){
+      const ico = $(v==='fp16'?'icoFp16':'icoFp32');
+      const btn = $(v==='fp16'?'bDownFp16':'bDownFp32');
+      let hay = false;
+      try { hay = !!(eng && eng.hayCache && await eng.hayCache(v)); } catch(_){}
+      if (ico){ ico.textContent = hay ? '✅' : '☁️'; ico.title = hay ? 'Listo' : 'No descargado'; }
+      if (btn) btn.textContent = hay ? '✅ Listo' : '☁️ Descargar';
+    }
   }
   async function etiquetarHablantes(blob){
     const cues = cuesDePista();
     if (!cues.length){ aviso('No hay subtítulos que etiquetar.', 'err'); return 0; }
     if (!blob){ aviso('Elige una toma con audio.', 'err'); return 0; }
     const modo = habModo() || 'ligero';
+    const variante = habVar();
     const eng = window.DiarizationEngine;
     if (!eng || !eng.diarizar){ aviso('Sin motor de diarización.', 'info'); return 0; }
-    aviso(modo === 'profesional' ? 'Diarización profesional…' : 'Agrupando por timbre…', 'info');
+    aviso(modo === 'profesional' ? ('Diarización '+variante+'…') : 'Agrupando por timbre…', 'info');
     const maxK = Math.max(2, Math.min(4, +(($('selMaxHab')||{}).value || 3)));
-    const r = await eng.diarizar(blob, { cues: cues, maxK: maxK, modo: modo });
+    const r = await eng.diarizar(blob, { cues: cues, maxK: maxK, modo: modo, variante: variante });
     const fusion = eng.fusionar ? eng.fusionar(cues, r.turnos || []) : (r.turnos || []);
     enLote('hablantes', () => {
       fusion.forEach(t => {
@@ -2277,7 +2299,8 @@ window.Grabadora = null;
     pintarCues();
     const n = new Set(fusion.map(t => t.hablante).filter(Boolean)).size;
     const tag = (r && r.modo === 'profesional') ? 'profesional' : 'rápido';
-    aviso(n+' hablante'+(n===1?'':'s')+' ('+tag+').', 'ok');
+    if (modo === 'profesional' && r && r.modo !== 'profesional') aviso('Motor profesional no disponible. Usando modo rápido.', 'info');
+    else aviso(n+' hablante'+(n===1?'':'s')+' ('+tag+').', 'ok');
     return n;
   }
   function blobTomaActiva(){
@@ -2416,7 +2439,8 @@ window.Grabadora = null;
     try { await descargarIdioma(code); }
     catch(e){ setProg(null); setIcoLang('off'); aviso(msgDescarga(e), 'err'); }
   }
-  const GS_VER = '20260912q';
+  const GS_VER = '20260912t';
+  window.GS_SERVER_BASE = window.GS_SERVER_BASE || '';
   function registrarSW(){
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
     const url = (() => { try { return new URL('whisper-sw.js?v='+GS_VER, location.href).href; } catch(_){ return 'whisper-sw.js?v='+GS_VER; } })();
@@ -2837,44 +2861,54 @@ window.Grabadora = null;
   if ($('bGestIdiomas')) $('bGestIdiomas').onclick = () => abrirIdiomas();
   if ($('bIdiomasX')) $('bIdiomasX').onclick = () => cerrarIdiomas();
   if ($('selIdiomaWh')) $('selIdiomaWh').onchange = () => onIdiomaWh();
-  if ($('chkHabRap')) $('chkHabRap').onchange = () => {
-    if ($('chkHabRap').checked && $('chkHablantes')) $('chkHablantes').checked = false;
+  function salvarHabVar(){
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
-    p.habRapido = !!$('chkHabRap').checked;
-    p.hablantesOn = !!( $('chkHablantes') && $('chkHablantes').checked );
-    salvarUI(p); pintarCues();
-  };
-  if ($('chkHablantes')) $('chkHablantes').onchange = async () => {
-    const on = !!$('chkHablantes').checked;
-    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
-    if (on){
-      if ($('chkHabRap')) $('chkHabRap').checked = false;
-      const eng = window.DiarizationEngine;
-      if (!eng){ $('chkHablantes').checked = false; aviso('Requiere DiarizationEngine.js al lado del HTML.', 'info'); return; }
-      try {
-        const hay = eng.hayCache ? await eng.hayCache() : false;
-        if (!hay && !confirm('Descargar modelo profesional (~6 MB, una vez, 100% local). ¿Descargar?')){
-          $('chkHablantes').checked = false; return;
-        }
-        if (eng.estado && eng.estado() !== 'listo'){
-          downCancel = false; setProg(1);
-          await eng.cargar({ onProgreso: q => setProg(pctProgreso(q)) });
-          setProg(100); setTimeout(() => setProg(null), 400);
-          aviso('Modelo listo. Precisión mejorada.', 'ok');
-        }
-      } catch(e){
-        setProg(null);
-        $('chkHablantes').checked = false;
-        aviso('Hugging Face no entregó el ONNX: '+(e.message||e)+'. Puedes usar el modo rápido.', 'err');
-        return;
-      }
-    }
-    p.hablantesOn = !!$('chkHablantes').checked;
-    p.habRapido = !!( $('chkHabRap') && $('chkHabRap').checked );
+    p.habVar = habVar();
     salvarUI(p);
-    pintarIcoHab();
     pintarCues();
-  };
+  }
+  document.querySelectorAll('input[name="habVar"]').forEach(el => {
+    el.onchange = async () => {
+      salvarHabVar();
+      const v = habVar();
+      if (v !== 'fp16' && v !== 'fp32') return;
+      const eng = window.DiarizationEngine;
+      let hay = false;
+      try { hay = !!(eng && eng.hayCache && await eng.hayCache(v)); } catch(_){}
+      if (!hay) descargarVar(v);
+    };
+  });
+  async function descargarVar(v){
+    const eng = window.DiarizationEngine;
+    if (!eng){ aviso('Requiere DiarizationEngine.js al lado del HTML.', 'info'); return; }
+    const mb = (eng.mb && eng.mb(v)) || (v==='fp32'?31:28);
+    try {
+      const hay = eng.hayCache ? await eng.hayCache(v) : false;
+      if (!hay && !confirm('Descargar variante '+(v==='fp32'?'máxima':'rápida')+' (~'+mb+' MB, una vez, 100% local). ¿Descargar?')) return;
+      downCancel = false; setProg(1);
+      await eng.cargar({ variante: v, onProgreso: q => setProg(pctProgreso(q)) });
+      setProg(100); setTimeout(() => setProg(null), 400);
+      setHabVar(v); salvarHabVar();
+      await pintarIcoHab();
+      aviso('Modelo listo. Precisión mejorada.', 'ok');
+    } catch(e){
+      setProg(null);
+      aviso('Motor profesional no disponible ('+(e.message||e)+'). Usando modo rápido al generar.', 'err');
+    }
+  }
+  async function borrarVar(v){
+    const eng = window.DiarizationEngine;
+    if (!eng || !eng.borrar) return;
+    if (!confirm('¿Borrar la variante '+(v==='fp32'?'máxima':'rápida')+' de este equipo?')) return;
+    try { await eng.borrar(v); } catch(_){}
+    if (habVar() === v){ setHabVar('off'); salvarHabVar(); }
+    await pintarIcoHab();
+    aviso('Variante borrada.', 'ok');
+  }
+  if ($('bDownFp16')) $('bDownFp16').onclick = () => descargarVar('fp16');
+  if ($('bDownFp32')) $('bDownFp32').onclick = () => descargarVar('fp32');
+  if ($('bDelFp16')) $('bDelFp16').onclick = () => borrarVar('fp16');
+  if ($('bDelFp32')) $('bDelFp32').onclick = () => borrarVar('fp32');
   if ($('chkTiempos')) $('chkTiempos').onchange = () => {
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
     p.tiemposOn = !!$('chkTiempos').checked; salvarUI(p);
