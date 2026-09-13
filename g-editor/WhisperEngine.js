@@ -546,7 +546,8 @@
     opciones = opciones || {};
     var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     if (estado !== 'listo') {
-      await cargar({ onProgreso: onProgreso });
+      if (opciones.exigirListo) throw new Error('Modelo Whisper no listo');
+      await cargar({ onProgreso: onProgreso, modelo: opciones.modelo });
     }
     if (!(blob instanceof Blob)) throw new Error('transcribir espera un Blob de audio');
     var audio = await pcm16k(blob);

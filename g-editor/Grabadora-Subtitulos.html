@@ -2037,24 +2037,29 @@ window.Grabadora = null;
     }
     return new Blob([buf], { type:'audio/wav' });
   }
+  function whisperListo(){
+    const eng = window.WhisperEngine;
+    return !!(eng && eng.estado && eng.estado() === 'listo');
+  }
   async function asegurarWhisperLive(){
     try{ await loadWhisper(); }catch(_){}
     const eng = window.WhisperEngine;
     if (!eng) return false;
-    if (eng.estado && eng.estado() === 'listo') return true;
+    if (whisperListo()) return true;
     try{
-      if ($('livePriv')) $('livePriv').textContent = 'Descargando Whisper para oír el audio de la PC (~75 MB, una vez)…';
+      if ($('livePriv')) $('livePriv').textContent = 'Descargando modelo… Espera a que termine para oír el audio.';
       await descargarIdioma(idiomaWhSel() || 'auto', { silencio:true });
     }catch(e){
       aviso('Sin Whisper no hay subtítulos del audio de la PC. '+(e.message||e), 'err');
       return false;
     }
-    return !!(eng.estado && eng.estado() === 'listo');
+    return whisperListo();
   }
   async function transcribirLiveBlob(blob){
     if (!blob || blob.size < 64) return;
     const eng = window.WhisperEngine;
     if (!eng || !eng.transcribir) return;
+    if (!whisperListo()) return;
     try{
       let voz = null;
       try { if (eng.vad) voz = await eng.vad(blob); } catch(_){ voz = null; }
@@ -2063,6 +2068,7 @@ window.Grabadora = null;
       if (!voz || !voz.length || durVoz < 0.5) return;
       const r = await eng.transcribir(blob, {
         idioma: livePar().src,
+        exigirListo: true,
         no_speech_threshold: 0.5,
         logprob_threshold: -0.8,
         compression_ratio_threshold: 2.4
@@ -2141,6 +2147,7 @@ window.Grabadora = null;
   }
   function arrancarLiveCap(){
     pararLiveCap();
+    if (!whisperListo()) return false;
     if (!streamToma || !streamToma.getAudioTracks().length) return false;
     cicloLiveRec();
     return true;
@@ -2150,19 +2157,24 @@ window.Grabadora = null;
     if (!speechOn()) return;
     speechT0 = ahoraRec();
     if (esCapturaPC()){
-      if ($('livePriv')) $('livePriv').textContent = 'Audio de PC/ventana: Whisper local. No usa el micrófono del sistema.';
+      if ($('livePriv')) $('livePriv').textContent = 'Preparando modelos. La escucha empieza cuando la descarga termine.';
       try { if (window.WhisperEngine && window.WhisperEngine.asegurarVad) await window.WhisperEngine.asegurarVad(); } catch(_){}
-      const okCap = arrancarLiveCap();
       const okWh = await asegurarWhisperLive();
-      if (okCap && okWh){
-        if ($('livePriv')) $('livePriv').textContent = 'Con audio de PC (música/ruido), la transcripción en vivo puede fallar. Para mejor calidad, graba y usa Generar texto.';
+      if (!okWh){
+        aviso('Descarga primero Whisper. Luego pulsa En vivo otra vez.', 'err');
         return;
       }
-      if (!okWh) aviso('Descarga Whisper para subtítulos del audio de la PC.', 'err');
+      const okCap = arrancarLiveCap();
+      if (okCap){
+        if ($('livePriv')) $('livePriv').textContent = 'Modelo listo. Oyendo el audio capturado.';
+        return;
+      }
+      aviso('No hay pista de audio en la captura. Comparte audio de la pestaña o pantalla.', 'err');
       return;
     }
     const C = SRClass(); if (!C){
-      if (arrancarLiveCap()) asegurarWhisperLive();
+      const okWh = await asegurarWhisperLive();
+      if (okWh) arrancarLiveCap();
       return;
     }
     const r = new C();
@@ -2387,9 +2399,23 @@ window.Grabadora = null;
     const variante = habVar();
     const eng = window.DiarizationEngine;
     if (!eng || !eng.diarizar){ aviso('Sin motor de diarización.', 'info'); return 0; }
-    aviso(modo === 'profesional' ? ('Diarización '+variante+'…') : 'Agrupando por timbre…', 'info');
+    let modoUso = modo;
+    if (modo === 'profesional'){
+      let packOk = false;
+      try { packOk = !!(eng.hayCache && await eng.hayCache(variante)); } catch(_){}
+      if (!packOk){
+        aviso('Descargando hablantes antes de etiquetar…', 'info');
+        try { await descargarVar(variante); } catch(_){}
+        try { packOk = !!(eng.hayCache && await eng.hayCache(variante)); } catch(_){}
+      }
+      if (!packOk){
+        aviso('Motor profesional no disponible. Usando modo rápido.', 'info');
+        modoUso = 'ligero';
+      }
+    }
+    aviso(modoUso === 'profesional' ? ('Diarización '+variante+'…') : 'Agrupando por timbre…', 'info');
     const maxK = Math.max(2, Math.min(4, +(($('selMaxHab')||{}).value || 3)));
-    const r = await eng.diarizar(blob, { cues: cues, maxK: maxK, modo: modo, variante: variante });
+    const r = await eng.diarizar(blob, { cues: cues, maxK: maxK, modo: modoUso, variante: variante });
     const fusion = eng.fusionar ? eng.fusionar(cues, r.turnos || []) : (r.turnos || []);
     enLote('hablantes', () => {
       fusion.forEach(t => {
@@ -2545,7 +2571,7 @@ window.Grabadora = null;
     try { await descargarIdioma(code); }
     catch(e){ setProg(null); setIcoLang('off'); aviso(msgDescarga(e), 'err'); }
   }
-  const GS_VER = '20260912z';
+  const GS_VER = '20260913a';
   window.GS_SERVER_BASE = window.GS_SERVER_BASE || '';
   function registrarSW(){
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
