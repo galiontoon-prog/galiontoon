@@ -631,6 +631,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 <div class="dlg" id="dlgDown">
   <div class="caja">
     <div class="downHead"><h3>Descargando modelo</h3><span id="downPct">0%</span></div>
+    <p id="downFile" class="hint" style="text-align:left;margin:0 0 8px"></p>
     <div class="progWh on" id="barraWhisper"><i id="barraWhisperI"></i></div>
     <p id="downMb">0 / 75 MB</p>
     <button type="button" class="link" id="bDownX">Cerrar</button>
@@ -2411,8 +2412,9 @@ window.Grabadora = null;
     const nom = nomIdiomaWh(code);
     setIcoLang('wait', 'Descargando '+nom);
     downCancel = false;
+    prepararDown({ totalMb: 75, file: 'whisper-tiny', pasos: 1, paso: 1 });
     setProg(1);
-    await eng.cargar({ onProgreso: p => setProg(pctProgreso(p)) });
+    await eng.cargar({ onProgreso: p => setProg(pctProgreso(p), { file: nomDown(p) || 'whisper-tiny', totalMb: 75 }) });
     let bytes = 75 * 1024 * 1024;
     try { if (eng.bytesCache) bytes = (await eng.bytesCache()) || bytes; } catch(_){}
     if (eng.marcarIdioma) await eng.marcarIdioma(code, { bytes: bytes, nombre: nom });
@@ -2475,7 +2477,7 @@ window.Grabadora = null;
     try { await descargarIdioma(code); }
     catch(e){ setProg(null); setIcoLang('off'); aviso(msgDescarga(e), 'err'); }
   }
-  const GS_VER = '20260912v';
+  const GS_VER = '20260912w';
   window.GS_SERVER_BASE = window.GS_SERVER_BASE || '';
   function registrarSW(){
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
@@ -2579,7 +2581,23 @@ window.Grabadora = null;
     const dlg = $('dlgDown');
     if (dlg) dlg.classList.remove('on');
   }
-  function setProg(pct){
+  let downCtx = { totalMb: 75, file: '', paso: 1, pasos: 1 };
+  function prepararDown(opts){
+    downCtx = Object.assign({ totalMb: 75, file: '', paso: 1, pasos: 1 }, opts || {});
+    if ($('downFile')) $('downFile').textContent = '';
+    if ($('downMb')) $('downMb').textContent = '0 / '+downCtx.totalMb+' MB';
+  }
+  function nomDown(p){
+    const s = String((p && (p.file || p.stage)) || '');
+    return s.split('?')[0].split('/').pop() || '';
+  }
+  function setProg(pct, extra){
+    if (extra){
+      if (extra.totalMb) downCtx.totalMb = extra.totalMb;
+      if (extra.file != null) downCtx.file = extra.file;
+      if (extra.paso) downCtx.paso = extra.paso;
+      if (extra.pasos) downCtx.pasos = extra.pasos;
+    }
     if (downCancel && pct != null && pct < 100) return;
     const dlg = $('dlgDown'), bar = $('barraWhisper'), i = $('barraWhisperI');
     const on = pct != null && pct < 100;
@@ -2588,7 +2606,14 @@ window.Grabadora = null;
     const n = Math.max(0, Math.min(100, Math.round(pct||0)));
     if (i && pct != null) i.style.width = n+'%';
     if ($('downPct')) $('downPct').textContent = n+'%';
-    if ($('downMb')) $('downMb').textContent = Math.round(n/100*75)+' / 75 MB';
+    const mb = downCtx.totalMb || 75;
+    if ($('downMb')) $('downMb').textContent = Math.round(n/100*mb)+' / '+mb+' MB';
+    if ($('downFile')){
+      const f = downCtx.file;
+      $('downFile').textContent = !f ? '' : (downCtx.pasos > 1
+        ? ('Descargando '+downCtx.paso+' de '+downCtx.pasos+': '+f)
+        : ('Descargando: '+f));
+    }
   }
   function msgDescarga(e){
     const t = String((e && e.message) || e || '');
@@ -2913,8 +2938,28 @@ window.Grabadora = null;
     try {
       const hay = eng.hayCache ? await eng.hayCache(v) : false;
       if (!hay && !confirm('Descargar variante '+(v==='fp32'?'máxima':'rápida')+' (~'+mb+' MB, una vez, 100% local). ¿Descargar?')) return;
-      downCancel = false; setProg(1);
-      await eng.cargar({ variante: v, onProgreso: q => setProg(pctProgreso(q)) });
+      let hayEmb = false;
+      try {
+        const root = await navigator.storage.getDirectory();
+        const dir = await root.getDirectoryHandle('diar-engine', { create: false });
+        const f = await dir.getFileHandle('embeddings.onnx', { create: false });
+        hayEmb = !!(f && (await f.getFile()).size > 1024);
+      } catch(_){}
+      const soloSeg = hayEmb;
+      const totalMb = soloSeg ? (v==='fp32'?6:3) : (v==='fp32'?31:28);
+      const pasos = soloSeg ? 1 : 2;
+      const segNom = v==='fp32' ? 'segmentacion-fp32.onnx' : 'segmentacion-fp16.onnx';
+      downCancel = false;
+      prepararDown({ totalMb: totalMb, file: segNom, paso: 1, pasos: pasos });
+      setProg(1, { file: segNom, paso: 1, pasos: pasos, totalMb: totalMb });
+      await eng.cargar({ variante: v, onProgreso: q => {
+        const f = nomDown(q);
+        let paso = 1;
+        if (/embeddings/i.test(f)) paso = soloSeg ? 1 : 2;
+        else if (/segmentacion/i.test(f)) paso = 1;
+        else if (f) paso = pasos;
+        setProg(pctProgreso(q), { file: f || segNom, paso: paso, pasos: pasos, totalMb: totalMb });
+      } });
       setProg(100); setTimeout(() => setProg(null), 400);
       setHabVar(v); salvarHabVar();
       await pintarIcoHab();
