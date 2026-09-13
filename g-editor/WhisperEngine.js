@@ -6,7 +6,15 @@
 (function (global) {
   'use strict';
 
-  var MODELO = 'onnx-community/whisper-tiny';
+  var TAMANO = 'tiny';
+  var MODELOS = {
+    tiny: 'onnx-community/whisper-tiny',
+    base: 'onnx-community/whisper-base'
+  };
+  var MODELO = MODELOS.tiny;
+  var CORS_PROXY = 'https://galiontoon-cors.galiontoon.workers.dev/?url=';
+  var RELEASE_WH = 'https://github.com/galiontoon-prog/galiontoon/releases/download/modelos-whisper-v1/';
+  var SILERO_NOM = 'silero_vad.onnx';
   var TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2';
   var TF_DIST = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/dist/';
   var HF_HOST = 'https://huggingface.co/';
@@ -208,21 +216,132 @@
     return out;
   }
 
+  var sesSilero = null;
+  async function asegurarOrt() {
+    if (global.ort) return global.ort;
+    await new Promise(function (ok, bad) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js';
+      s.onload = ok;
+      s.onerror = function () { bad(new Error('ORT')); };
+      document.head.appendChild(s);
+    });
+    try { global.ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/'; } catch (_) {}
+    return global.ort;
+  }
+  async function asegurarSilero(onProg) {
+    if (sesSilero) return sesSilero;
+    var buf = null;
+    try {
+      var root = await navigator.storage.getDirectory();
+      var d = await root.getDirectoryHandle('whisper-engine', { create: true });
+      try {
+        var fh = await d.getFileHandle(SILERO_NOM, { create: false });
+        var file = await fh.getFile();
+        if (file && file.size > 1024) buf = await file.arrayBuffer();
+      } catch (_) {}
+      if (!buf) {
+        var url = CORS_PROXY + RELEASE_WH + SILERO_NOM;
+        if (onProg) onProg({ file: SILERO_NOM, progress: 10 });
+        var res = await fetch(url, { mode: 'cors' });
+        if (!res.ok) throw new Error('Silero HTTP ' + res.status);
+        buf = await res.arrayBuffer();
+        var w = await (await d.getFileHandle(SILERO_NOM, { create: true })).createWritable();
+        await w.write(buf); await w.close();
+      }
+    } catch (e) { throw e; }
+    var ort = await asegurarOrt();
+    var providers = (typeof navigator !== 'undefined' && navigator.gpu) ? ['webgpu', 'wasm'] : ['wasm'];
+    var lastOrt = null;
+    for (var pi = 0; pi < providers.length; pi++) {
+      try {
+        sesSilero = await ort.InferenceSession.create(buf, { executionProviders: [providers[pi]] });
+        lastOrt = null;
+        break;
+      } catch (e) { lastOrt = e; }
+    }
+    if (!sesSilero) throw lastOrt || new Error('Silero session');
+    return sesSilero;
+  }
+  async function vadSilero(blob) {
+    var pcm = await pcm16k(blob);
+    try { await asegurarSilero(); } catch (_) { return null; }
+    var ort = global.ort;
+    var hop = 512, sr = 16000, th = 0.5;
+    var probs = [];
+    var state = new ort.Tensor('float32', new Float32Array(2 * 1 * 128), [2, 1, 128]);
+    var srTen = new ort.Tensor('int64', BigInt64Array.from([BigInt(sr)]), []);
+    for (var i = 0; i + hop <= pcm.length; i += hop) {
+      var sl = pcm.subarray(i, i + hop);
+      var feeds = {
+        input: new ort.Tensor('float32', sl, [1, sl.length]),
+        state: state,
+        sr: srTen
+      };
+      try {
+        var out = await sesSilero.run(feeds);
+        var p = out.output && out.output.data ? out.output.data[0] : 0;
+        probs.push({ t: i / sr, p: +p });
+        if (out.stateN) state = out.stateN;
+      } catch (_) { break; }
+    }
+    if (!probs.length) return null;
+    var segs = [], on = false, t0 = 0, last = 0;
+    for (var k = 0; k < probs.length; k++) {
+      var hit = probs[k].p >= th;
+      if (!on && hit) { on = true; t0 = Math.max(0, probs[k].t - 0.05); }
+      if (on && hit) last = probs[k].t + hop / sr;
+      if (on && !hit && probs[k].t - last > 0.2) {
+        if (last - t0 >= 0.35) segs.push({ t0: t0, t1: last, texto: '[voz]' });
+        on = false;
+      }
+    }
+    if (on && last - t0 >= 0.35) segs.push({ t0: t0, t1: last, texto: '[voz]' });
+    return segs;
+  }
+
+  function limpiarTextoWh(s) {
+    var t = String(s || '').replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    t = t.replace(/(.{2,4})\1{3,}/gi, '$1$1$1');
+    var w = t.split(' ');
+    var out = [];
+    var run = 0, last = '';
+    for (var i = 0; i < w.length; i++) {
+      var cur = w[i];
+      if (cur.toLowerCase() === last.toLowerCase()) {
+        run++;
+        if (run >= 3) continue;
+      } else { run = 1; last = cur; }
+      out.push(cur);
+    }
+    return out.join(' ').trim();
+  }
   function segsDeResultado(r) {
     var out = [];
     if (!r) return out;
+    function okMeta(ch) {
+      if (!ch) return true;
+      if (ch.no_speech_prob != null && +ch.no_speech_prob > 0.8) return false;
+      if (ch.avg_logprob != null && +ch.avg_logprob < -1.5) return false;
+      if (ch.compression_ratio != null && +ch.compression_ratio > 3) return false;
+      return true;
+    }
     if (Array.isArray(r.chunks) && r.chunks.length) {
       r.chunks.forEach(function (ch) {
+        if (!okMeta(ch)) return;
         var ts = ch.timestamp || [0, 0];
         var t0 = +ts[0] || 0;
         var t1 = ts[1] == null ? t0 + 1 : +ts[1];
-        var texto = String(ch.text || '').trim();
-        if (texto && t1 > t0) out.push({ t0: t0, t1: t1, texto: texto });
+        var texto = limpiarTextoWh(ch.text || '');
+        if (texto.length < 2) return;
+        if (t1 - t0 < 0.5) return;
+        out.push({ t0: t0, t1: t1, texto: texto });
       });
       return out;
     }
-    var txt = String(r.text || '').trim();
-    if (txt) out.push({ t0: 0, t1: 1, texto: txt });
+    var txt = limpiarTextoWh(r.text || '');
+    if (txt.length >= 2) out.push({ t0: 0, t1: 1, texto: txt });
     return out;
   }
 
@@ -238,7 +357,7 @@
       'let pipe = null;',
       'let info = { device: "wasm", dtype: "q8" };',
       'async function inferir(audio, language) {',
-      '  const opts = { task: "transcribe", return_timestamps: true, chunk_length_s: 20, stride_length_s: 2 };',
+      '  const opts = { task: "transcribe", return_timestamps: true, chunk_length_s: 20, stride_length_s: 2, no_speech_threshold: 0.5, logprob_threshold: -0.8, compression_ratio_threshold: 2.4, condition_on_previous_text: false };',
       '  if (language) opts.language = language;',
       '  const sr = 16000, win = 30 * sr, hop = 28 * sr;',
       '  if (!audio || audio.length <= win * 1.15) return pipe(audio, opts);',
@@ -376,8 +495,15 @@
   async function cargar(opciones) {
     opciones = opciones || {};
     onProgreso = opciones.onProgreso || opciones.onProgress || null;
+    var want = String(opciones.modelo || TAMANO || 'tiny').toLowerCase();
+    if (want !== 'base') want = 'tiny';
+    if (want !== TAMANO || MODELO !== MODELOS[want]) {
+      try { await liberar(); } catch (_) {}
+      TAMANO = want;
+      MODELO = MODELOS[want];
+    }
     if (estado === 'listo' && (pipe || worker)) {
-      return { ok: true, cache: true, device: deviceUsado, dtype: dtypeUsado };
+      return { ok: true, cache: true, device: deviceUsado, dtype: dtypeUsado, modelo: TAMANO };
     }
     if (cargaEnCurso) return cargaEnCurso;
     setEstado('descargando');
@@ -432,8 +558,17 @@
     if (worker) {
       r = await llamarWorker('transcribir', { audio: audio, language: lang });
     } else if (pipe) {
-      var popts = { task: 'transcribe', return_timestamps: true, chunk_length_s: 20, stride_length_s: 2 };
+      var popts = {
+        task: 'transcribe',
+        return_timestamps: true,
+        chunk_length_s: opciones.chunk_length_s || 20,
+        stride_length_s: opciones.stride_length_s || 2
+      };
       if (lang) popts.language = lang;
+      popts.no_speech_threshold = opciones.no_speech_threshold != null ? opciones.no_speech_threshold : 0.5;
+      popts.logprob_threshold = opciones.logprob_threshold != null ? opciones.logprob_threshold : -0.8;
+      popts.compression_ratio_threshold = opciones.compression_ratio_threshold != null ? opciones.compression_ratio_threshold : 2.4;
+      popts.condition_on_previous_text = false;
       r = await pipe(audio, popts);
     } else {
       throw new Error('Whisper no está listo');
@@ -495,9 +630,12 @@
     dtype: function () { return dtypeUsado; },
     etiquetaModelo: function () {
       var q = dtypeUsado === 'q8' ? 'int8' : (dtypeUsado || 'fp32');
-      return 'tiny-' + q;
+      return TAMANO + '-' + q;
     },
     modelo: function () { return MODELO; },
+    tamano: function () { return TAMANO; },
+    vad: vadSilero,
+    asegurarVad: asegurarSilero,
     hayCache: async function () { return (await hayMarcaOPFS()) || (await hayCacheHF()); }
   };
 })(typeof window !== 'undefined' ? window : self);

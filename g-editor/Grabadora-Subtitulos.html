@@ -422,6 +422,12 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       </select>
       <span id="icoIdiomaWh" class="icoLang" title="Estado del modelo">☁️</span>
     </div>
+    <div class="langWh solo-adv" style="margin-top:6px">
+      <select id="selModeloWh" class="btn field" title="Tamaño del modelo Whisper">
+        <option value="tiny" selected>Tiny · 75 MB · rápido</option>
+        <option value="base">Base · ~140 MB · menos alucinaciones</option>
+      </select>
+    </div>
     <p class="hint solo-adv" id="estWhisper" style="text-align:left"></p>
     <p class="hint solo-adv" id="estMotor" style="text-align:left"></p>
     <label class="chk solo-adv"><input type="checkbox" id="chkTiempos"> Mostrar tiempos</label>
@@ -1773,6 +1779,7 @@ window.Grabadora = null;
     document.documentElement.style.fontSize = ['13px','15px','17px'][Math.max(0, Math.min(2, p.tipo|0))] || '13px';
     if ($('bTema')) $('bTema').textContent = p.tema === 'claro' ? '☾' : '☀';
     if ($('selIdiomaWh') && p.idiomaWh) $('selIdiomaWh').value = p.idiomaWh;
+    if ($('selModeloWh') && p.modeloWh) $('selModeloWh').value = p.modeloWh;
     setHabVar(p.habVar || 'off');
     pintarIcoHab();
     if ($('chkTiempos') && p.tiemposOn != null) $('chkTiempos').checked = !!p.tiemposOn;
@@ -1953,7 +1960,7 @@ window.Grabadora = null;
     if ($('livePriv')){
       $('livePriv').classList.add('on');
       $('livePriv').textContent = esCapturaPC()
-        ? 'Audio de PC/ventana: el texto sale de Whisper local. No usa el micrófono del sistema.'
+        ? 'Con audio de PC (música/ruido), la transcripción en vivo puede fallar. Para mejor calidad, graba y usa Generar texto.'
         : 'El reconocimiento del navegador oye el micrófono de este equipo.';
     }
     pintarLive(true);
@@ -1964,12 +1971,53 @@ window.Grabadora = null;
     if ($('liveBox')) $('liveBox').classList.remove('on');
     if ($('bLiveOpen')) $('bLiveOpen').classList.remove('on');
   }
+  function limpiaLiveTxt(texto){
+    let t = String(texto || '').replace(/\s+/g,' ').trim();
+    t = t.replace(/(.{2,4})\1{3,}/gi, '$1$1$1');
+    const w = t.split(' ').filter(Boolean);
+    const out = [];
+    let run = 0, last = '';
+    for (let i = 0; i < w.length; i++){
+      const cur = w[i];
+      if (cur.toLowerCase() === last.toLowerCase()){ run++; if (run >= 3) continue; }
+      else { run = 1; last = cur; }
+      out.push(cur);
+    }
+    return out.join(' ').trim();
+  }
+  function esEcoLive(texto){
+    const t = String(texto || '').toLowerCase().replace(/[.,;:!?¡¿"'«»]+/g,' ').replace(/\s+/g,' ').trim();
+    if (t.length < 2) return true;
+    const w = t.split(' ').filter(Boolean);
+    if (!w.length) return true;
+    if (w.length >= 3 && new Set(w).size === 1) return true;
+    if (w.length >= 6){
+      const n = Math.floor(w.length/2);
+      if (w.slice(0,n).join(' ') === w.slice(n, n*2).join(' ')) return true;
+    }
+    return false;
+  }
+  let liveEcoLog = [];
+  function avisarAlucinacion(texto){
+    const now = Date.now();
+    const key = String(texto||'').toLowerCase();
+    liveEcoLog.push({ t: now, s: key });
+    liveEcoLog = liveEcoLog.filter(x => now - x.t < 10000);
+    if (liveEcoLog.filter(x => x.s === key).length < 5) return;
+    const tam = (($('selModeloWh')||{}).value) || 'tiny';
+    if (tam === 'tiny') aviso('El modelo tiny puede alucinar con audio difícil. Prueba el modelo Base (Avanzado → Modelo → Base).', 'info');
+  }
   function meterLiveTexto(texto){
-    texto = String(texto || '').trim();
-    if (!texto) return;
+    texto = limpiaLiveTxt(texto);
+    if (texto.length < 2) return;
+    if (esEcoLive(texto)) return;
+    const prev = speechCues.length ? speechCues[speechCues.length-1].texto : '';
+    if (prev && prev.toLowerCase() === texto.toLowerCase()) return;
+    avisarAlucinacion(texto);
     const t1 = ahoraRec(), t0s = Math.max(0, speechT0);
-    const cue = { t0:t0s, t1:Math.max(t0s+0.4, t1), texto, trad:'' };
-    speechCues.push(cue); speechT0 = Math.max(t0s+0.4, t1);
+    if (t1 - t0s < 0.5 && texto.length < 8) return;
+    const cue = { t0:t0s, t1:Math.max(t0s+0.5, t1), texto, trad:'' };
+    speechCues.push(cue); speechT0 = Math.max(t0s+0.5, t1);
     traducirLiveLinea(cue);
     pintarLive();
   }
@@ -2008,8 +2056,25 @@ window.Grabadora = null;
     const eng = window.WhisperEngine;
     if (!eng || !eng.transcribir) return;
     try{
-      const r = await eng.transcribir(blob, { idioma: livePar().src });
-      const segs = (r && r.segmentos) || [];
+      let voz = null;
+      try { if (eng.vad) voz = await eng.vad(blob); } catch(_){ voz = null; }
+      if (!voz) voz = await vadDeBlob(blob);
+      const durVoz = (voz||[]).reduce((a,s) => a + Math.max(0, (s.t1||0)-(s.t0||0)), 0);
+      if (!voz || !voz.length || durVoz < 0.5) return;
+      const r = await eng.transcribir(blob, {
+        idioma: livePar().src,
+        no_speech_threshold: 0.5,
+        logprob_threshold: -0.8,
+        compression_ratio_threshold: 2.4
+      });
+      const segs = ((r && r.segmentos) || []).filter(s => {
+        const dur = Math.max(0, (+s.t1||0) - (+s.t0||0));
+        const tx = String(s.texto||'').trim();
+        if (tx.length < 2) return false;
+        if (dur && dur < 0.5) return false;
+        if (esEcoLive(tx)) return false;
+        return true;
+      });
       const txt = segs.map(s => s.texto).join(' ').trim();
       if (txt) meterLiveTexto(txt);
     }catch(_){}
@@ -2086,10 +2151,11 @@ window.Grabadora = null;
     speechT0 = ahoraRec();
     if (esCapturaPC()){
       if ($('livePriv')) $('livePriv').textContent = 'Audio de PC/ventana: Whisper local. No usa el micrófono del sistema.';
+      try { if (window.WhisperEngine && window.WhisperEngine.asegurarVad) await window.WhisperEngine.asegurarVad(); } catch(_){}
       const okCap = arrancarLiveCap();
       const okWh = await asegurarWhisperLive();
       if (okCap && okWh){
-        if ($('livePriv')) $('livePriv').textContent = 'Oyendo el audio capturado (Whisper). Las voces se etiquetan al generar texto de la toma.';
+        if ($('livePriv')) $('livePriv').textContent = 'Con audio de PC (música/ruido), la transcripción en vivo puede fallar. Para mejor calidad, graba y usa Generar texto.';
         return;
       }
       if (!okWh) aviso('Descarga Whisper para subtítulos del audio de la PC.', 'err');
@@ -2412,9 +2478,11 @@ window.Grabadora = null;
     const nom = nomIdiomaWh(code);
     setIcoLang('wait', 'Descargando '+nom);
     downCancel = false;
-    prepararDown({ totalMb: 75, file: 'whisper-tiny', pasos: 1, paso: 1 });
+    const tam = (($('selModeloWh')||{}).value) || 'tiny';
+    const mb = tam === 'base' ? 140 : 75;
+    prepararDown({ totalMb: mb, file: 'whisper-'+tam, pasos: 1, paso: 1 });
     setProg(1);
-    await eng.cargar({ onProgreso: p => setProg(pctProgreso(p), { file: nomDown(p) || 'whisper-tiny', totalMb: 75 }) });
+    await eng.cargar({ modelo: tam, onProgreso: p => setProg(pctProgreso(p), { file: nomDown(p) || ('whisper-'+tam), totalMb: mb }) });
     let bytes = 75 * 1024 * 1024;
     try { if (eng.bytesCache) bytes = (await eng.bytesCache()) || bytes; } catch(_){}
     if (eng.marcarIdioma) await eng.marcarIdioma(code, { bytes: bytes, nombre: nom });
@@ -2477,7 +2545,7 @@ window.Grabadora = null;
     try { await descargarIdioma(code); }
     catch(e){ setProg(null); setIcoLang('off'); aviso(msgDescarga(e), 'err'); }
   }
-  const GS_VER = '20260912w';
+  const GS_VER = '20260912z';
   window.GS_SERVER_BASE = window.GS_SERVER_BASE || '';
   function registrarSW(){
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
@@ -2921,6 +2989,29 @@ window.Grabadora = null;
   if ($('bGestIdiomas')) $('bGestIdiomas').onclick = () => abrirIdiomas();
   if ($('bIdiomasX')) $('bIdiomasX').onclick = () => cerrarIdiomas();
   if ($('selIdiomaWh')) $('selIdiomaWh').onchange = () => onIdiomaWh();
+  if ($('selModeloWh')) $('selModeloWh').onchange = async () => {
+    const tam = $('selModeloWh').value || 'tiny';
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.modeloWh = tam; salvarUI(p);
+    const eng = window.WhisperEngine;
+    if (!eng || !eng.cargar) return;
+    if (tam === 'base' && !confirm('Descargar Whisper Base (~140 MB, una vez, 100% local)?')){
+      $('selModeloWh').value = 'tiny'; p.modeloWh = 'tiny'; salvarUI(p); return;
+    }
+    try {
+      downCancel = false;
+      const mb = tam === 'base' ? 140 : 75;
+      prepararDown({ totalMb: mb, file: 'whisper-'+tam, pasos: 1, paso: 1 });
+      setProg(1);
+      await eng.cargar({ modelo: tam, onProgreso: q => setProg(pctProgreso(q), { file: nomDown(q)||('whisper-'+tam), totalMb: mb }) });
+      setProg(100); setTimeout(() => setProg(null), 400);
+      pintarWhisper();
+      aviso('Modelo '+tam+' listo.', 'ok');
+    } catch(e){
+      setProg(null);
+      aviso('No se pudo cargar Whisper '+tam+'.', 'err');
+    }
+  };
   function salvarHabVar(){
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
     p.habVar = habVar();
