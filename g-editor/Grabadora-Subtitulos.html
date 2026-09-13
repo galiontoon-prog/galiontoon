@@ -28,6 +28,11 @@ input[type=text],input[type=number],textarea,.cue input[type=text],.renom{
 }
 button:not(:disabled),[role=button]:not(:disabled){cursor:pointer}
 button[disabled]{opacity:.58;cursor:default}
+button:focus{outline:none}
+button:focus-visible,.btn:focus-visible,.recBtn:focus-visible,.tog button:focus-visible,.foot button:focus-visible{
+  outline:2px solid var(--verde);outline-offset:2px
+}
+.btn-hero:focus-visible{outline-color:#fff}
 #app{position:relative;width:360px;max-width:100%;margin:0 auto;background:var(--panel);border:1px solid var(--borde);border-radius:16px;padding:12px 12px 10px}
 html.modo-simple .solo-adv{display:none !important}
 html.modo-avanzado .solo-simple{display:none !important}
@@ -56,6 +61,9 @@ h1{margin:4px 0 12px;font-size:18px;font-weight:800;letter-spacing:.04em}
 .chk{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;color:var(--secu);cursor:pointer}
 .chk input{appearance:none;-webkit-appearance:none;width:15px;height:15px;margin:0;border:1.5px solid #3a3a4a;border-radius:3px;background:transparent;flex:0 0 15px}
 .chk input:checked{background:var(--rosa);border-color:var(--rosa);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path stroke='white' stroke-width='1.8' fill='none' d='M2.2 6.2l2.6 2.6 5-5.4'/></svg>");background-size:10px;background-repeat:no-repeat;background-position:center}
+.filaGain{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;margin:0 0 8px}
+.filaGain span{font-size:11px;color:var(--secu);white-space:nowrap}
+.filaGain input[type=range]{width:100%;height:6px;accent-color:var(--verde)}
 #fuente{margin-bottom:8px}
 .recRow{display:grid;grid-template-columns:72px 1fr;gap:14px;align-items:center;margin:4px 0 2px}
 .recBtn{position:relative;width:72px;height:72px;border-radius:50%;border:0;color:#fff;font-size:0;background:radial-gradient(circle at 32% 28%,#ff8aa8,var(--rosa) 52%,#d0124a);box-shadow:0 0 0 3px #ff3b6b22,0 0 26px #ff3b6b99,0 8px 16px #0008;transition:box-shadow .18s,filter .16s,transform .16s}
@@ -83,15 +91,39 @@ canvas{width:100%;height:56px;background:transparent;display:block}
 .filaIdioma button{height:28px;width:auto;min-width:64px;padding:0 10px;font-size:11px}
 .col{display:flex;flex-direction:column;gap:8px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.btn{height:38px;padding:0 12px;border-radius:10px;border:1px solid var(--borde2);background:var(--ctl);color:#c8c8d4;font-size:13px;font-weight:600;width:100%;transition:background .16s,border-color .16s,color .16s,filter .16s}
+.btn{height:38px;padding:0 12px;border-radius:10px;border:1px solid var(--borde2);background:var(--ctl);color:#c8c8d4;font-size:13px;font-weight:600;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:background .16s,border-color .16s,color .16s,filter .16s}
+.ico{width:15px;height:15px;flex:0 0 15px;display:block;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.subsUtil .ico{width:13px;height:13px;flex-basis:13px}
+.btn-live{gap:6px}
 .btn:hover:not(:disabled){background:#2a2a38;border-color:#44445a}
 .btn-pink{background:#1a1218;border-color:var(--rosa);color:var(--rosa)}
 .btn-pink:hover:not(:disabled){background:#2a1520}
 .btn-save{background:var(--rosa);border-color:var(--rosa);color:#fff;font-weight:800;height:42px}
 .btn-save:hover:not(:disabled){filter:brightness(1.08)}
-.btn-live{position:relative;padding-right:26px}
-.btn-live .dot{position:absolute;right:12px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:var(--rojo);box-shadow:0 0 8px #ff4d4d88}
+.btn-hero{background:var(--rosa);border-color:var(--rosa);color:#fff;font-weight:800}
+.btn-hero:hover:not(:disabled){filter:brightness(1.06);background:#ff4d78}
+.btn-live{position:relative;padding-right:22px;color:#c8c8d4}
+.btn-live .dot{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:var(--rojo);box-shadow:0 0 8px #ff4d4d88}
 .btn-live.on{border-color:var(--verde);color:var(--verde)}
+.btn-live:disabled{opacity:.45;cursor:not-allowed}
+#subsBtns{display:flex;flex-direction:column;gap:8px}
+.subsMain{display:grid;grid-template-columns:3fr 2fr;gap:8px}
+.subsMain .btn{height:40px}
+.subsUtil{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.subsUtil .btn{height:32px;font-size:12px;padding:0 6px;font-weight:600}
+.expWrap{position:relative}
+.expMenu{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:8;background:#16161e;border:1px solid #2a2a36;border-radius:8px;padding:4px;box-shadow:0 12px 28px #000a}
+.expWrap.on .expMenu{display:block}
+.expMenu button{display:block;width:100%;height:30px;border:0;border-radius:6px;background:transparent;color:#e8e8f0;font-size:12px;font-weight:600;text-align:left;padding:0 10px;cursor:pointer}
+.expMenu button:hover:not(:disabled){background:#22222e}
+.expMenu button:disabled{opacity:.4;cursor:not-allowed}
+.expMenu .solo-adv{display:none}
+html.modo-avanzado .expMenu .solo-adv{display:block}
+@media (max-width:359px){
+  .subsMain{grid-template-columns:1fr}
+  .subsUtil{grid-template-columns:1fr 1fr}
+  .subsUtil > :last-child{grid-column:1 / -1}
+}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
 select.btn,select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path fill='%23888899' d='M0 0l5 6 5-6z'/></svg>");background-repeat:no-repeat;background-position:right 10px center;padding-right:24px}
 .field{height:38px;padding:0 10px;border-radius:10px;border:1px solid var(--borde2);background:var(--ctl);color:var(--txt);width:100%}
@@ -190,7 +222,21 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 #lista .vacio{padding:28px 8px}
 #lista:has(.vacio){min-height:72px;display:flex;align-items:center;justify-content:center}
 #cardCues{padding:0;overflow:hidden;background:#1a1a24;border:1px solid var(--borde);margin-top:10px}
-#cardCues .tit{margin:0;padding:10px 12px;border-bottom:1px solid #22222e;background:#1a1a24}
+#cardCues .cabCues{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #22222e;background:#1a1a24}
+#cardCues .cabCues .tit{margin:0;padding:0;border:0;flex:1;min-width:0}
+#bBusCues{width:28px;height:28px;padding:0;border:0;border-radius:7px;background:transparent;color:#8a8a9a;display:flex;align-items:center;justify-content:center}
+#bBusCues:hover,#cardCues.busca-on #bBusCues{color:#fff;background:#22222e}
+#bBusCues .ico{margin:0;width:15px;height:15px}
+#barraBusca{display:none;grid-template-columns:1fr 1fr auto auto auto;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid #22222e;background:#16161e}
+#cardCues.busca-on #barraBusca{display:grid}
+#barraBusca .field{height:28px;font-size:12px;padding:0 8px}
+#barraBusca .icoBtn{width:28px;height:28px;padding:0;border:1px solid var(--borde2);border-radius:7px;background:var(--ctl);color:#c8c8d4;display:flex;align-items:center;justify-content:center}
+#barraBusca .icoBtn:hover{background:#2a2a38;color:#fff}
+#barraBusca .ico{margin:0;width:14px;height:14px}
+#cueMenu{display:none;position:fixed;z-index:70;min-width:140px;background:#16161e;border:1px solid #2a2a36;border-radius:8px;padding:4px;box-shadow:0 12px 28px #000a}
+#cueMenu.on{display:block}
+#cueMenu button{display:block;width:100%;height:30px;border:0;border-radius:6px;background:transparent;color:#e8e8f0;font-size:12px;font-weight:600;text-align:left;padding:0 10px}
+#cueMenu button:hover{background:#22222e}
 #cajaCues{outline:none;max-height:260px;overflow-x:hidden;overflow-y:scroll;background:#1a1a24;scrollbar-width:thin;scrollbar-color:#3a3a4a #1a1a24}
 #cajaCues::-webkit-scrollbar{width:8px}
 #cajaCues::-webkit-scrollbar-track{background:#1a1a24}
@@ -241,18 +287,18 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 <div id="app">
   <div class="top">
     <div class="tog" id="togModo">
-      <button type="button" id="bSimple" class="on">Simple</button>
-      <button type="button" id="bAvanzado">Avanzado</button>
+      <button type="button" id="bSimple" class="on" aria-pressed="true">Simple</button>
+      <button type="button" id="bAvanzado" aria-pressed="false">Avanzado</button>
     </div>
     <span class="grow"></span>
     <span class="badge" id="badge">LISTO</span>
-    <button type="button" class="x" id="bX" title="Cerrar">×</button>
+    <button type="button" class="x" id="bX" title="Cerrar" aria-label="Cerrar panel">×</button>
   </div>
   <div id="modo"></div>
   <h1>GRABADORA</h1>
   <div class="sesion" id="avisoSesion">
     <span>Al recargar perderás las tomas no guardadas.</span>
-    <button type="button" class="cierra" id="bSesionX">×</button>
+    <button type="button" class="cierra" id="bSesionX" aria-label="Cerrar aviso">×</button>
   </div>
   <div class="aviso" id="aviso"></div>
 
@@ -266,13 +312,19 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     </select>
     <p class="hint solo-adv" id="hintFuente" style="text-align:left;margin:0 0 8px">Micrófono de este equipo.</p>
     <label class="chk solo-adv"><input type="checkbox" id="filtrosMic"> Filtros del mic</label>
+    <div class="filaGain solo-adv" title="Ganancia de captura">
+      <span>Vol.</span>
+      <input type="range" id="gananciaCap" min="0.5" max="3" step="0.1" value="1.5">
+      <span id="gananciaCapN">1.5×</span>
+    </div>
+    <label class="chk solo-adv"><input type="checkbox" id="chkNormRms"> Normalizar en vivo</label>
     <select id="selCodec" class="btn field solo-adv" title="Codec de grabación" style="margin-bottom:8px"></select>
     <p class="hint solo-adv" id="hintCodec" style="text-align:left;margin:0 0 8px"></p>
     <label class="chk solo-adv"><input type="checkbox" id="chkCuenta"> Cuenta atrás 3 s</label>
     <label class="chk solo-adv"><input type="checkbox" id="chkSpeech"> Reconocimiento en vivo</label>
     <p class="hint solo-adv" id="avisoSpeech" style="display:none;color:#FF4D4D;text-align:left">El audio sale del equipo (servicio del navegador).</p>
     <div class="recRow">
-      <button type="button" class="recBtn" id="bGrabar" title="Grabar">●</button>
+      <button type="button" class="recBtn" id="bGrabar" title="Grabar" aria-label="Grabar">●</button>
       <canvas id="onda" width="640" height="56"></canvas>
     </div>
     <p class="timer" id="timer">00:00.0</p>
@@ -299,20 +351,25 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 
   <section class="card">
     <p class="tit">Subtítulos</p>
-    <div class="col" id="subsBtns">
-      <button type="button" class="btn" id="bImpSrt">Importar SRT/VTT</button>
-      <button type="button" class="btn" id="bExpSrt" disabled>Exportar SRT</button>
-      <div class="grid2 solo-adv">
-        <button type="button" class="btn" id="bExpVtt" disabled>Exportar VTT</button>
-        <button type="button" class="btn" id="bExpTxt" disabled>Exportar TXT</button>
+    <div id="subsBtns">
+      <div class="subsMain">
+        <button type="button" class="btn btn-hero" id="bTranscribir"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20 14.5 6.2M9.2 4.8l.6 2.2 2.2.6-2.2.6-.6 2.2-.6-2.2-2.2-.6 2.2-.6zM18.2 12.2l.4 1.5 1.5.4-1.5.4-.4 1.5-.4-1.5-1.5-.4 1.5-.4z"/></svg> Generar texto</button>
+        <button type="button" class="btn btn-live" id="bLiveOpen" title="Subtítulos en vivo" aria-pressed="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3.5" width="6" height="10" rx="3"/><path d="M7 11a5 5 0 0 0 10 0M12 16v3.5M9 19.5h6"/></svg> En vivo<span class="dot" aria-hidden="true"></span></button>
       </div>
-      <div class="grid2 solo-adv">
-        <button type="button" class="btn" id="bExpJson" disabled>Exportar JSON</button>
-        <button type="button" class="btn" id="bCopiar">Copiar</button>
+      <div class="subsUtil">
+        <button type="button" class="btn" id="bImpSrt"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5V6a1.5 1.5 0 0 1 1.5-1.5h5l2 2H19A1.5 1.5 0 0 1 20.5 8v10a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18z"/></svg> Importar</button>
+        <div class="expWrap" id="expWrap">
+          <button type="button" class="btn" id="bExpMenu" disabled aria-haspopup="menu" aria-expanded="false" aria-controls="expMenu"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M8 11l4 4 4-4M5 19h14"/></svg> Exportar</button>
+          <div class="expMenu" id="expMenu" role="menu">
+            <button type="button" id="bExpSrt" disabled role="menuitem">SRT</button>
+            <button type="button" class="solo-adv" id="bExpVtt" disabled role="menuitem">VTT</button>
+            <button type="button" class="solo-adv" id="bExpTxt" disabled role="menuitem">TXT</button>
+            <button type="button" class="solo-adv" id="bExpJson" disabled role="menuitem">JSON</button>
+            <button type="button" class="solo-adv" id="bCopiar" role="menuitem">Copiar</button>
+          </div>
+        </div>
+        <button type="button" class="btn" id="bGuardar"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h11l3 3v11H5z"/><path d="M8 5v5h8V5M8 19v-6h8v6"/></svg> Guardar</button>
       </div>
-      <button type="button" class="btn btn-pink" id="bTranscribir">✨ Generar texto</button>
-      <button type="button" class="btn btn-live" id="bLiveOpen">🎙 Subtítulos en vivo<span class="dot"></span></button>
-      <button type="button" class="btn btn-save" id="bGuardar">💾 Guardar proyecto</button>
     </div>
     <div class="grid2 solo-adv" style="margin-top:8px">
       <select id="langOrigen" class="btn field">
@@ -356,8 +413,9 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     <p class="hint solo-adv" id="lapsoWh" style="display:none;text-align:left"></p>
     <button type="button" class="btn solo-adv" id="bGestIdiomas">Gestionar idiomas</button>
     <div id="cajaHab" class="solo-adv" hidden>
-    <label class="chk" id="labHablantes" title="Requiere descarga de modelos"><input type="checkbox" id="chkHablantes"> Etiquetar hablantes (Profesional)</label>
-    <p class="hint" style="text-align:left;margin:0 0 8px">Modelo pyannote local (~6 MB). Nada sale del equipo.</p>
+    <label class="chk" id="labHabRap"><input type="checkbox" id="chkHabRap"> Etiquetar hablantes (rápido, sin descarga)</label>
+    <label class="chk" id="labHablantes" title="pyannote-segmentation-3.0 desde Hugging Face"><input type="checkbox" id="chkHablantes"> Etiquetar hablantes (profesional, +precisión, ~6 MB) <span id="icoHabPro" class="icoLang" title="Estado del modelo">☁️</span></label>
+    <p class="hint" style="text-align:left;margin:0 0 8px">Rápido = timbre local. Profesional = pyannote ONNX (Hugging Face, CORS ok, luego OPFS).</p>
     <div class="grid2 solo-adv" style="margin-bottom:8px">
       <select id="selMaxHab" class="btn field" title="Máximo de hablantes">
         <option value="2">Hasta 2</option>
@@ -368,33 +426,27 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     </div>
     </div>
     <input type="file" id="fSrt" accept=".srt,.vtt,text/vtt" hidden>
-    <div class="solo-adv" id="cajaCuesTools" style="margin-top:8px">
-      <div class="buscaRow">
-        <span>Buscar</span>
-        <input type="text" class="field" id="busCue">
-      </div>
-      <div class="buscaRow">
-        <span>Reemplazar</span>
-        <input type="text" class="field" id="repCue">
-      </div>
-      <div class="col">
-        <button type="button" class="btn" id="bBusSig">Buscar siguiente</button>
-        <button type="button" class="btn" id="bRepUno">Reemplazar</button>
-        <button type="button" class="btn" id="bRepTodo">Reemplazar todo</button>
-      </div>
-      <div class="grid2" style="margin-top:8px">
-        <button type="button" class="btn" id="bDivCue">Dividir</button>
-        <button type="button" class="btn" id="bFusCue">Fusionar</button>
-      </div>
-    </div>
   </section>
 
   <section class="card" id="cardCues">
-    <p class="tit" id="titCues">Subtítulos generados (0)</p>
+    <div class="cabCues">
+      <p class="tit" id="titCues">Subtítulos generados (0)</p>
+      <button type="button" class="solo-adv" id="bBusCues" title="Buscar y reemplazar" aria-label="Buscar y reemplazar" aria-expanded="false" aria-controls="barraBusca"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.2"/><path d="m16 16 4 4"/></svg></button>
+    </div>
+    <div id="barraBusca">
+      <input type="text" class="field" id="busCue" placeholder="Buscar" aria-label="Buscar">
+      <input type="text" class="field" id="repCue" placeholder="Reemplazar" aria-label="Reemplazar">
+      <button type="button" class="icoBtn" id="bBusSig" title="Buscar siguiente" aria-label="Buscar siguiente"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M8 15l4 4 4-4"/></svg></button>
+      <button type="button" class="icoBtn" id="bRepTodo" title="Reemplazar todo" aria-label="Reemplazar todo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v4H7zM7 13h10v4H7z"/></svg></button>
+      <button type="button" class="icoBtn" id="bBusX" title="Cerrar" aria-label="Cerrar búsqueda"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
+    </div>
     <div id="cajaCues" tabindex="0">
       <div id="listaSubs" class="docCues"></div>
     </div>
   </section>
+  <div id="cueMenu">
+    <button type="button" id="bCtxFus">Fusionar</button>
+  </div>
 
   <div class="foot solo-adv">
     <button type="button" id="bTipoM" title="Letra más pequeña">A−</button>
@@ -404,7 +456,10 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
   <section class="card solo-adv" id="banco">
     <p class="tit">Banco Σ</p>
-    <button type="button" class="btn" id="bRun">Correr pruebas</button>
+    <div class="grid2" style="margin-bottom:8px">
+      <button type="button" class="btn" id="bRun">Correr pruebas</button>
+      <button type="button" class="btn" id="bWcag">Validar WCAG</button>
+    </div>
     <div id="testOut"></div>
     <p class="tit" style="margin-top:14px">Tabla de estilos CSS</p>
     <div class="wrapTabla">
@@ -436,7 +491,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 
   <div id="liveBox">
     <div class="cab" id="liveCab">
-      <span>🎙 Subtítulos en vivo</span>
+      <span>Subtítulos en vivo</span>
       <span class="grow"></span>
       <span class="par" title="Hablo → se traduce a">
         <select id="liveSrc" title="Idioma que hablo">
@@ -447,7 +502,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
           <option value="it">IT</option>
           <option value="de">DE</option>
         </select>
-        <button type="button" id="bLiveSwap" title="Intercambiar idiomas"><i data-lucide="arrow-left-right"></i></button>
+        <button type="button" id="bLiveSwap" title="Intercambiar idiomas" aria-label="Intercambiar idiomas"><svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/></svg></button>
         <select id="liveDst" title="Traducir a">
           <option value="es">ES</option>
           <option value="en" selected>EN</option>
@@ -457,18 +512,18 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
           <option value="de">DE</option>
         </select>
       </span>
-      <button type="button" id="bLiveTrad" title="Ocultar subtítulo de abajo" aria-pressed="true"><i data-lucide="captions"></i></button>
-      <button type="button" id="bLiveGear" title="Ajustes"><i data-lucide="settings-2"></i></button>
-      <button type="button" id="bLiveMin" title="Minimizar"><i data-lucide="minus"></i></button>
-      <button type="button" id="bLiveX" title="Cerrar"><i data-lucide="x"></i></button>
+      <button type="button" id="bLiveTrad" title="Ocultar subtítulo de abajo" aria-label="Ocultar subtítulo de abajo" aria-pressed="true"><svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><rect class="fill" x="4" y="5" width="16" height="5" rx="1.4"/><rect class="lin2 fill" x="4" y="14" width="16" height="5" rx="1.4" opacity=".42"/></svg></button>
+      <button type="button" id="bLiveGear" title="Ajustes" aria-label="Ajustes" aria-haspopup="true" aria-expanded="false"><svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3.6v2.2M12 18.2v2.2M3.6 12h2.2M18.2 12h2.2M6.2 6.2l1.6 1.6M16.2 16.2l1.6 1.6M17.8 6.2 16.2 7.8M7.8 16.2 6.2 17.8"/></svg></button>
+      <button type="button" id="bLiveMin" title="Minimizar" aria-label="Minimizar"><svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+      <button type="button" id="bLiveX" title="Cerrar" aria-label="Cerrar subtítulos en vivo"><svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
     </div>
     <div id="liveMenu">
       <div class="cap">Posición</div>
       <div class="posGrid">
-        <button type="button" data-pos="tl" title="Arriba izquierda"><i data-lucide="panel-top"></i></button>
-        <button type="button" data-pos="tr" title="Arriba derecha"><i data-lucide="panel-right"></i></button>
-        <button type="button" data-pos="bl" title="Abajo izquierda"><i data-lucide="panel-left"></i></button>
-        <button type="button" data-pos="br" title="Abajo derecha" class="on"><i data-lucide="panel-bottom"></i></button>
+        <button type="button" data-pos="tl" title="Arriba izquierda"><svg viewBox="0 0 24 20" aria-hidden="true"><rect class="marco" x="2.2" y="2.2" width="19.6" height="15.6" rx="2.4"/><rect class="bar" x="2.2" y="2.2" width="19.6" height="3.2" rx="2.4"/><rect class="pip" x="4.2" y="7.2" width="6.2" height="3.4" rx=".8"/></svg></button>
+        <button type="button" data-pos="tr" title="Arriba derecha"><svg viewBox="0 0 24 20" aria-hidden="true"><rect class="marco" x="2.2" y="2.2" width="19.6" height="15.6" rx="2.4"/><rect class="bar" x="2.2" y="2.2" width="19.6" height="3.2" rx="2.4"/><rect class="pip" x="13.6" y="7.2" width="6.2" height="3.4" rx=".8"/></svg></button>
+        <button type="button" data-pos="bl" title="Abajo izquierda"><svg viewBox="0 0 24 20" aria-hidden="true"><rect class="marco" x="2.2" y="2.2" width="19.6" height="15.6" rx="2.4"/><rect class="bar" x="2.2" y="2.2" width="19.6" height="3.2" rx="2.4"/><rect class="pip" x="4.2" y="12.2" width="6.2" height="3.4" rx=".8"/></svg></button>
+        <button type="button" data-pos="br" title="Abajo derecha" class="on"><svg viewBox="0 0 24 20" aria-hidden="true"><rect class="marco" x="2.2" y="2.2" width="19.6" height="15.6" rx="2.4"/><rect class="bar" x="2.2" y="2.2" width="19.6" height="3.2" rx="2.4"/><rect class="pip" x="13.6" y="12.2" width="6.2" height="3.4" rx=".8"/></svg></button>
       </div>
       <div class="sep"></div>
       <div class="cap">Idioma</div>
@@ -501,8 +556,8 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
         <label class="chkL"><input type="checkbox" id="chkLivePriv" checked> Aviso de privacidad</label>
       </div>
       <div class="sep"></div>
-      <button type="button" class="item" id="bLiveGestId"><span class="ico"><i data-lucide="languages"></i></span> Gestionar idiomas</button>
-      <button type="button" class="item" id="bLiveInfo"><span class="ico"><i data-lucide="info"></i></span> Más información</button>
+      <button type="button" class="item" id="bLiveGestId"><span class="ico"><svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M4.6 9.5h14.8M4.6 14.5h14.8M12 4a14 14 0 0 1 0 16M12 4a14 14 0 0 0 0 16"/></svg></span> Gestionar idiomas</button>
+      <button type="button" class="item" id="bLiveInfo"><span class="ico"><svg class="icoSvg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 11v5M12 8h.01"/></svg></span> Más información</button>
     </div>
     <p class="priv" id="livePriv">El audio del reconocimiento sale del equipo.<br>La traducción es local.</p>
     <div class="cuerpo" id="liveCuerpo"></div>
@@ -558,8 +613,8 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
-<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
 <script>
+
 window.Grabadora = null;
 (function(){
   'use strict';
@@ -744,7 +799,8 @@ window.Grabadora = null;
       estilo: pr.estilo || {},
       trackId: pr.trackId || c.pista,
       hablante: pr.hablante || '',
-      hablanteNom: pr.hablanteNom || ''
+      hablanteNom: pr.hablanteNom || '',
+      medio: c.medio || ''
     };
   }
   function nomDeHablante(id, fallback){
@@ -773,15 +829,23 @@ window.Grabadora = null;
     return { texto: m[2], hablante:'', hablanteNom: m[1].trim() };
   }
   function hayPistaSub(){ return PISTAS.some(p => p.id === 'sub-1' && p.tipo === 'subtitulo'); }
+  function tomaActiva(){ return selId || currentId || null; }
+  function nomToma(id){
+    const m = id && P.medios.get(id);
+    return (m && m.nom) || '';
+  }
   function cuesDePista(){
     const p = PISTAS.find(x => x.id === 'sub-1' && x.tipo === 'subtitulo');
     if (!p) return [];
-    return Object.values(P.clips).filter(c => c.pista === 'sub-1').map(clipACue).sort((a,b) => a.t0 - b.t0);
+    const toma = tomaActiva();
+    if (!toma) return [];
+    return Object.values(P.clips).filter(c => c.pista === 'sub-1' && c.medio === toma).map(clipACue).sort((a,b) => a.t0 - b.t0);
   }
   function meterCues(arr){
     return enLote('importar subtítulos', () => {
       asegurarSub();
       let n = 0;
+      const medio = tomaActiva() || 'sub-1';
       (arr||[]).forEach(s => {
         if (!(s.t1 > s.t0)) return;
         const id = nextId('cue-', false);
@@ -789,7 +853,7 @@ window.Grabadora = null;
         const hab = s.hablante || '';
         const habNom = s.hablanteNom || ph.hablanteNom || '';
         P.clips[id] = {
-          id, medio:'sub-1', pista:'sub-1',
+          id, medio, pista:'sub-1',
           inicio:s.t0, duracion:s.t1 - s.t0,
           props:{ texto: habNom ? ph.texto : (s.texto||''), estilo:s.estilo||{}, t0:s.t0, t1:s.t1, trackId:'sub-1', hablante:hab, hablanteNom:habNom }
         };
@@ -801,13 +865,22 @@ window.Grabadora = null;
   }
   function pintarCues(){
     const box = $('listaSubs');
+    const toma = tomaActiva();
     const cues = cuesDePista();
-    if ($('titCues')) $('titCues').textContent = 'Subtítulos generados ('+cues.length+')';
+    const nom = nomToma(toma);
+    if ($('titCues')) $('titCues').textContent = toma
+      ? ('Subtítulos de '+(nom || 'toma')+' ('+cues.length+')')
+      : 'Subtítulos generados (0)';
     $('bExpSrt').disabled = !hayPistaSub() || !cues.length;
+    if ($('bExpMenu')) $('bExpMenu').disabled = !hayPistaSub() || !cues.length;
     ['bExpVtt','bExpTxt','bExpJson'].forEach(id => { if ($(id)) $(id).disabled = !hayPistaSub() || !cues.length; });
     if (!box) return;
+    if (!toma){
+      box.innerHTML = '<p class="vacio">Selecciona una toma para ver sus subtítulos.</p>';
+      return;
+    }
     if (!hayPistaSub() || !cues.length){
-      box.innerHTML = '<p class="vacio">Importa un .srt o .vtt, o genera texto de una toma.</p>';
+      box.innerHTML = '<p class="vacio">Esta toma no tiene subtítulos. Pulsa Generar texto.</p>';
       return;
     }
     box.innerHTML = '';
@@ -893,11 +966,28 @@ window.Grabadora = null;
         inp.onblur = () => fin(true);
         inp.onkeydown = ev2 => teclaCampo(ev2, () => fin(true), () => fin(false));
       };
-      if ($('chkHablantes') && !$('chkHablantes').checked) ih.style.display = 'none';
+      if (!habActivo()) ih.style.display = 'none';
       d.querySelector('[data-x]').onclick = ev => { ev.stopPropagation(); borrarCue(s.id); };
       d.onclick = ev => {
         if (ev.target.closest('input') || ev.target.closest('button')) return;
         elegirCue(s.id, ev.shiftKey);
+      };
+      d.ondblclick = ev => {
+        if (ev.target.closest('[data-x]') || ev.target.closest('[data-h]')) return;
+        elegirCue(s.id, false);
+        dividirCue();
+      };
+      d.title = '';
+      let tipT;
+      d.onmouseenter = () => { tipT = setTimeout(() => { d.title = 'Doble clic para dividir'; }, 1000); };
+      d.onmouseleave = () => { clearTimeout(tipT); d.title = ''; };
+      d.oncontextmenu = ev => {
+        ev.preventDefault();
+        elegirCue(s.id, ev.shiftKey || selCues.size > 1);
+        const m = $('cueMenu'); if (!m) return;
+        m.classList.add('on');
+        m.style.left = ev.clientX+'px';
+        m.style.top = ev.clientY+'px';
       };
       box.appendChild(d);
     });
@@ -928,14 +1018,15 @@ window.Grabadora = null;
     const inp = filaCue(id) && filaCue(id).querySelector('[data-t]');
     let i = inp && document.activeElement === inp ? inp.selectionStart : Math.floor(txt.length/2);
     i = Math.max(0, Math.min(txt.length, +i || 0));
-    if (i <= 0 || i >= txt.length){ aviso('Pon el cursor en medio del texto.', 'err'); return; }
+    if (i <= 0 || i >= txt.length) i = Math.floor(txt.length/2);
+    if (i <= 0 || i >= txt.length){ aviso('Nada que dividir.', 'err'); return; }
     const izq = txt.slice(0,i).trim(), der = txt.slice(i).trim();
     if (!izq || !der){ aviso('Nada que dividir.', 'err'); return; }
     const t0 = c.props.t0, t1 = c.props.t1, mid = t0 + (t1-t0)*(i/txt.length);
     enLote('dividir cue', () => {
       c.props.texto = izq; c.props.t1 = mid; c.duracion = mid - t0;
       const nid = nextId('cue-', false);
-      P.clips[nid] = { id:nid, medio:'sub-1', pista:'sub-1', inicio:mid, duracion:t1-mid,
+      P.clips[nid] = { id:nid, medio:c.medio || tomaActiva() || 'sub-1', pista:'sub-1', inicio:mid, duracion:t1-mid,
         props:{ texto:der, estilo:c.props.estilo||{}, t0:mid, t1:t1, trackId:'sub-1', hablante:c.props.hablante||'', hablanteNom:c.props.hablanteNom||'' } };
       selCue = nid; selCues = new Set([id, nid]);
     });
@@ -1029,13 +1120,14 @@ window.Grabadora = null;
   }
   function enCajaCues(el){ const caja = $('cajaCues'); return !!(caja && el && caja.contains(el)); }
   function atajosCues(ev){
-    if (!enCajaCues(ev.target)) return;
+    const card = $('cardCues');
+    if (!(enCajaCues(ev.target) || (card && card.contains(ev.target)))) return;
     const tag = (ev.target.tagName||'').toLowerCase();
     const enInput = tag === 'input' || tag === 'textarea';
     const meta = ev.ctrlKey || ev.metaKey;
     if (meta && ev.key.toLowerCase() === 'z' && !ev.shiftKey){ ev.preventDefault(); deshacer(); return; }
     if (meta && (ev.key.toLowerCase() === 'y' || (ev.key.toLowerCase()==='z' && ev.shiftKey))){ ev.preventDefault(); rehacer(); return; }
-    if (meta && ev.key.toLowerCase() === 'f'){ ev.preventDefault(); $('busCue').focus(); return; }
+    if (meta && ev.key.toLowerCase() === 'f'){ ev.preventDefault(); abrirBuscaCues(); return; }
     if (ev.key === 'Escape'){ if (enInput){ ev.target.blur(); $('cajaCues').focus(); } return; }
     if (enInput) return;
     const paso = ev.shiftKey ? 1 : 0.1;
@@ -1087,6 +1179,9 @@ window.Grabadora = null;
     $('bGrabar').classList.toggle('rec', estado === GRABANDO || estado === PAUSADO);
     if (!$('bGrabar').classList.contains('cuenta'))
       $('bGrabar').textContent = estado === GRABANDO || estado === PAUSADO ? '■' : '●';
+    const labG = estado === GRABANDO ? 'Detener grabación' : (estado === PAUSADO ? 'Grabación en pausa' : 'Grabar');
+    $('bGrabar').setAttribute('aria-label', labG);
+    $('bGrabar').title = labG;
     const hayToma = !!(selId || (estado === COMPLETADO && blob));
     $('bDescartar').disabled = !hayToma || estado !== COMPLETADO;
     const bp = $('bPausa');
@@ -1096,19 +1191,30 @@ window.Grabadora = null;
     }
     if ($('bPlayAll')) $('bPlayAll').textContent = colaPlay ? 'Detener' : '▶ Reproducir todo';
   }
+  const GANANCIA_VISUAL = 2.0;
   function pintarOnda(vivo, data){
     const cv = $('onda'); const g = cv.getContext('2d');
     const w = cv.width, h = cv.height;
     g.clearRect(0,0,w,h);
     const n = 22, gap = 4, bw = Math.max(3, (w - 8 - gap*(n-1))/n);
+    const maxH = h - 10;
     for (let i = 0; i < n; i++){
       let v;
-      if (vivo && data) v = Math.max(0.08, Math.abs(data[Math.floor(i*data.length/n)]/255 - 0.5)*2);
-      else {
+      if (vivo && data && data.length){
+        const a = Math.floor(i * data.length / n);
+        const b = Math.max(a+1, Math.floor((i+1) * data.length / n));
+        let pico = 0;
+        for (let k = a; k < b; k++){
+          const amp = Math.abs(data[k] - 128) / 128;
+          if (amp > pico) pico = amp;
+        }
+        v = Math.min(1, pico * GANANCIA_VISUAL);
+        v = v < 0.04 ? 0.12 : Math.max(0.12, v);
+      } else {
         const t = i / (n-1);
         v = 0.16 + 0.78 * Math.exp(-Math.pow((t-0.42)/0.22, 2)) * Math.abs(Math.sin(i*0.95+0.4));
       }
-      const bh = Math.max(6, v*(h-10));
+      const bh = Math.max(6, v * maxH);
       g.fillStyle = '#00FF88';
       g.fillRect(4+i*(bw+gap), (h-bh)/2, bw, bh);
     }
@@ -1118,6 +1224,7 @@ window.Grabadora = null;
     const buf = new Uint8Array(analyser.fftSize);
     analyser.getByteTimeDomainData(buf);
     pintarOnda(true, buf);
+    tickAutoRms();
     raf = requestAnimationFrame(bucleOnda);
   }
   function filaToma(id){ return document.querySelector('#lista .li[data-id="'+id+'"]'); }
@@ -1155,7 +1262,7 @@ window.Grabadora = null;
       d.querySelector('strong').ondblclick = ev => { ev.stopPropagation(); editarNom(m, d.querySelector('strong')); };
       d.onclick = ev => {
         if (ev.target.closest('button') || ev.target.closest('input')) return;
-        selId = m.id; blob = m.blob||null; currentId = m.id; pintarLista(); pintarBadge();
+        selId = m.id; blob = m.blob||null; currentId = m.id; pintarLista(); pintarBadge(); pintarCues();
       };
       d.querySelector('[data-p]').onclick = ev => { ev.stopPropagation(); togglePlay(m); };
       sl.oninput = ev => { ev.stopPropagation(); seeking = true; sl.title = mmss(+sl.value); pintarTiempo(m.id, +sl.value, m.dur); };
@@ -1201,7 +1308,7 @@ window.Grabadora = null;
     if (playId === m.id && !el.paused){ el.pause(); pintarLista(); return; }
     el.playbackRate = velPlay;
     el.play().catch(e => aviso('No se pudo reproducir: '+(e.message||e)));
-    pintarLista();
+    pintarLista(); pintarCues();
   }
   function seekTo(m, t){
     const el = prepararPlayer(m); if (!el) return;
@@ -1282,6 +1389,25 @@ window.Grabadora = null;
     const v = ($('fuente')||{}).value || 'mic'; const h = $('hintFuente'); if (!h) return;
     h.textContent = v==='mic' ? 'Micrófono de este equipo.' : v==='pestana' ? 'Elige una pestaña y marca «Compartir audio».' : v==='pantalla' ? (esMac() ? 'En Mac la pantalla no trae audio de escritorio. Usa Pestaña.' : 'Marca «Compartir audio del sistema».') : 'Mic + audio de pestaña/pantalla.';
     h.style.display = v==='mic' ? 'none' : 'block';
+    syncLiveBtn();
+  }
+  function fuenteSel(){ return esAvanzado() ? ((($('fuente')||{}).value) || 'mic') : 'mic'; }
+  function esCapturaPC(){ const f = fuenteActiva || fuenteSel(); return f === 'pestana' || f === 'pantalla' || f === 'mezcla'; }
+  function livePermitido(){ return true; }
+  function syncLiveBtn(){
+    const b = $('bLiveOpen');
+    if (b){
+      b.disabled = false;
+      b.title = esCapturaPC()
+        ? 'Subtítulos en vivo del audio capturado (Whisper local)'
+        : 'Subtítulos en vivo';
+    }
+    const chk = $('chkSpeech');
+    if (chk){
+      chk.disabled = false;
+      const lab = chk.closest('label');
+      if (lab) lab.title = b ? b.title : '';
+    }
   }
   function avisoSinAudio(tipo){
     if (tipo === 'pantalla' && esMac()) aviso('En Mac la pantalla completa no trae audio de escritorio. Elige «Pestaña» y marca «Compartir audio».', 'err');
@@ -1305,9 +1431,78 @@ window.Grabadora = null;
   function constraintsPantalla(){
     return {
       video: true,
-      audio: Object.assign({ suppressLocalAudioPlayback: false }, audioCrudo()),
-      systemAudio: 'include'
+      audio: Object.assign({
+        suppressLocalAudioPlayback: false,
+        restrictOwnAudio: true
+      }, audioCrudo()),
+      systemAudio: 'include',
+      restrictOwnAudio: true
     };
+  }
+  let gainLive = null, autoGain = null, anRms = null;
+  const RMS_OBJ = 0.14, RMS_SIL = 0.018, AUTO_MIN = 0.4, AUTO_MAX = 4;
+  function autoRmsOn(){ return !!( $('chkNormRms') && $('chkNormRms').checked ); }
+  function rmsBuf(buf){
+    let s = 0;
+    for (let i = 0; i < buf.length; i++){
+      const a = (buf[i] - 128) / 128;
+      s += a * a;
+    }
+    return Math.sqrt(s / Math.max(1, buf.length));
+  }
+  function tickAutoRms(){
+    if (!autoRmsOn() || !autoGain || !anRms || !ctxMix) return;
+    const buf = new Uint8Array(anRms.fftSize);
+    anRms.getByteTimeDomainData(buf);
+    const rms = rmsBuf(buf);
+    if (rms < RMS_SIL) return;
+    const g = Math.max(AUTO_MIN, Math.min(AUTO_MAX, RMS_OBJ / (rms + 1e-6)));
+    try { autoGain.gain.setTargetAtTime(g, ctxMix.currentTime, 0.28); } catch(_){ autoGain.gain.value = g; }
+  }
+  function gananciaVal(){
+    const el = $('gananciaCap');
+    const v = el ? +el.value : 1.5;
+    return isFinite(v) && v > 0 ? v : 1.5;
+  }
+  function pintarGanancia(){
+    const n = $('gananciaCapN');
+    if (n) n.textContent = gananciaVal().toFixed(1)+'×';
+  }
+  function aplicarGanancia(){
+    pintarGanancia();
+    if (gainLive && gainLive.gain) gainLive.gain.value = gananciaVal();
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.ganancia = gananciaVal();
+    salvarUI(p);
+  }
+  function abrirGrafo(){
+    if (ctxMix && ctxMix.state !== 'closed'){ try{ ctxMix.close(); }catch(_){} }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    ctxMix = new AC();
+    const gain = ctxMix.createGain();
+    gain.gain.value = gananciaVal();
+    gainLive = gain;
+    autoGain = ctxMix.createGain();
+    autoGain.gain.value = 1;
+    anRms = ctxMix.createAnalyser();
+    anRms.fftSize = 256;
+    anRms.smoothingTimeConstant = 0.4;
+    const lim = ctxMix.createDynamicsCompressor();
+    lim.threshold.value = -6;
+    lim.knee.value = 6;
+    lim.ratio.value = 20;
+    lim.attack.value = 0.003;
+    lim.release.value = 0.15;
+    const dest = ctxMix.createMediaStreamDestination();
+    gain.connect(anRms);
+    gain.connect(autoGain);
+    autoGain.connect(lim);
+    lim.connect(dest);
+    return { ac: ctxMix, gain, dest };
+  }
+  function engancharFuente(ac, stream, nodo){
+    if (!stream || !stream.getAudioTracks().length) return;
+    try { ac.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(nodo); } catch(_){}
   }
   async function aplicarCrudo(stream){
     if (!stream) return stream;
@@ -1336,25 +1531,26 @@ window.Grabadora = null;
   }
   async function abrirFuente(tipo){
     extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} }); extra = [];
+    const g = abrirGrafo();
     if (tipo === 'pestana' || tipo === 'pantalla'){
       const disp = await abrirPantalla();
       if (!disp.getAudioTracks().length) avisoSinAudio(tipo);
-      return new MediaStream(disp.getAudioTracks());
+      engancharFuente(g.ac, disp, g.gain);
+      return g.dest.stream;
     }
     if (tipo === 'mezcla'){
       const mic = await asegurarMic();
-      let disp;
+      let disp = null;
       try{ disp = await abrirPantalla(); }
-      catch(_){ aviso('Sin pantalla: la mezcla sigue solo con el micrófono.', 'info'); return mic; }
-      if (!disp.getAudioTracks().length) avisoSinAudio('pantalla');
-      const AC = window.AudioContext || window.webkitAudioContext;
-      ctxMix = new AC();
-      const dest = ctxMix.createMediaStreamDestination();
-      ctxMix.createMediaStreamSource(mic).connect(dest);
-      if (disp.getAudioTracks().length) ctxMix.createMediaStreamSource(new MediaStream(disp.getAudioTracks())).connect(dest);
-      return dest.stream;
+      catch(_){ aviso('Sin pantalla: la mezcla sigue solo con el micrófono.', 'info'); }
+      if (disp && !disp.getAudioTracks().length) avisoSinAudio('pantalla');
+      engancharFuente(g.ac, mic, g.gain);
+      if (disp) engancharFuente(g.ac, disp, g.gain);
+      return g.dest.stream;
     }
-    return asegurarMic();
+    const mic = await asegurarMic();
+    engancharFuente(g.ac, mic, g.gain);
+    return g.dest.stream;
   }
   async function iniciar(){
     if (estado === GRABANDO || estado === PAUSADO) return;
@@ -1375,7 +1571,12 @@ window.Grabadora = null;
     if (!ctx || ctx.state === 'closed') ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') await ctx.resume();
     t0 = ctx.currentTime;
-    try{ analyser = ctx.createAnalyser(); analyser.fftSize = 512; ctx.createMediaStreamSource(streamToma).connect(analyser); }
+    try{
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.5;
+      ctx.createMediaStreamSource(streamToma).connect(analyser);
+    }
     catch(_){ analyser = null; }
     mime = mimeAudio();
     $('codec').textContent = 'Codec: ' + (mime || 'MediaRecorder');
@@ -1398,6 +1599,7 @@ window.Grabadora = null;
   function soltarClon(){
     extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} }); extra = [];
     if (ctxMix){ try{ ctxMix.close(); }catch(_){} ctxMix = null; }
+    gainLive = null; autoGain = null; anRms = null;
     if (!streamToma) return;
     streamToma.getTracks().forEach(t => { try{ t.stop(); }catch(_){ } });
     streamToma = null;
@@ -1412,7 +1614,7 @@ window.Grabadora = null;
     if (!blob || blob.size < 32) return null;
     const id = nextId('grab-', true);
     P.medios.set(id, { id, tipo:'grabacion', blob, dur, nom: nomNueva(), mime, fuente: fuenteActiva });
-    currentId = id; selId = id; pintarLista();
+    currentId = id; selId = id; pintarLista(); pintarCues();
     return id;
   }
   function relojVivo(){
@@ -1495,9 +1697,7 @@ window.Grabadora = null;
     P.medios.delete(id);
     if (selId === id) selId = null;
     if (currentId === id) currentId = null;
-    pintarLista(); pintarBadge();
-  }
-  function descartar(){
+    pintarLista(); pintarBadge(); pintarCues();
     clearInterval(tick); cancelAnimationFrame(raf);
     if (rec && rec.state === 'recording') try{ rec.stop(); }catch(_){}
     chunks = []; blob = null;
@@ -1506,7 +1706,7 @@ window.Grabadora = null;
     if (currentId) P.medios.delete(currentId);
     currentId = null; selId = null;
     $('timer').textContent = '00:00.0';
-    pintarOnda(false); pintarLista();
+    pintarOnda(false); pintarLista(); pintarCues();
     estado = LISTO; pintarBadge();
   }
 
@@ -1517,8 +1717,8 @@ window.Grabadora = null;
     const adv = esAvanzado();
     document.documentElement.classList.toggle('modo-simple', !adv);
     document.documentElement.classList.toggle('modo-avanzado', adv);
-    if ($('bSimple')) $('bSimple').classList.toggle('on', !adv);
-    if ($('bAvanzado')) $('bAvanzado').classList.toggle('on', adv);
+    if ($('bSimple')){ $('bSimple').classList.toggle('on', !adv); $('bSimple').setAttribute('aria-pressed', !adv ? 'true' : 'false'); }
+    if ($('bAvanzado')){ $('bAvanzado').classList.toggle('on', adv); $('bAvanzado').setAttribute('aria-pressed', adv ? 'true' : 'false'); }
     if (!adv){
       if ($('fuente')) $('fuente').value = 'mic';
       if ($('chkCuenta')) $('chkCuenta').checked = false;
@@ -1536,10 +1736,16 @@ window.Grabadora = null;
     document.documentElement.style.fontSize = ['13px','15px','17px'][Math.max(0, Math.min(2, p.tipo|0))] || '13px';
     if ($('bTema')) $('bTema').textContent = p.tema === 'claro' ? '☾' : '☀';
     if ($('selIdiomaWh') && p.idiomaWh) $('selIdiomaWh').value = p.idiomaWh;
+    if ($('chkHabRap') && p.habRapido != null) $('chkHabRap').checked = !!p.habRapido;
     if ($('chkHablantes') && p.hablantesOn != null) $('chkHablantes').checked = !!p.hablantesOn;
+    pintarIcoHab();
     if ($('chkTiempos') && p.tiemposOn != null) $('chkTiempos').checked = !!p.tiemposOn;
     if ($('selMaxHab') && p.maxHab) $('selMaxHab').value = String(p.maxHab);
+    if ($('gananciaCap') && p.ganancia != null) $('gananciaCap').value = String(p.ganancia);
+    if ($('chkNormRms') && p.normRms != null) $('chkNormRms').checked = !!p.normRms;
+    pintarGanancia();
     aplicarModo();
+    syncLiveBtn();
   }
   function setModo(m){
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
@@ -1618,12 +1824,14 @@ window.Grabadora = null;
   function SRClass(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
   function speechOn(){ return liveActivo || !!( $('chkSpeech') && $('chkSpeech').checked ); }
   function ahoraRec(){ return (estado === GRABANDO && ctx) ? Math.max(0, ctx.currentTime - t0) : (dur||0); }
-  let liveCap = { proc:null, gain:null, src:null, buf:[], busy:false };
+  let liveCap = { proc:null, gain:null, src:null, buf:[], busy:false, rec:null, tok:0 };
   function pararLiveCap(){
+    liveCap.tok = (liveCap.tok || 0) + 1;
+    try{ if (liveCap.rec && liveCap.rec.state !== 'inactive') liveCap.rec.stop(); }catch(_){}
     try{ if (liveCap.proc) liveCap.proc.disconnect(); }catch(_){}
     try{ if (liveCap.gain) liveCap.gain.disconnect(); }catch(_){}
     try{ if (liveCap.src) liveCap.src.disconnect(); }catch(_){}
-    liveCap = { proc:null, gain:null, src:null, buf:[], busy:false };
+    liveCap = { proc:null, gain:null, src:null, buf:[], busy:false, rec:null, tok:liveCap.tok };
   }
   function pararSpeech(){
     pararLiveCap();
@@ -1637,7 +1845,10 @@ window.Grabadora = null;
     const ver = liveActivo || (speechOn() && (estado===GRABANDO || estado===PAUSADO || speechCues.length || forzar));
     box.classList.toggle('on', !!ver);
     box.classList.toggle('rec', estado === GRABANDO);
-    if ($('bLiveOpen')) $('bLiveOpen').classList.toggle('on', !!ver);
+    if ($('bLiveOpen')){
+      $('bLiveOpen').classList.toggle('on', !!ver);
+      $('bLiveOpen').setAttribute('aria-pressed', ver ? 'true' : 'false');
+    }
     if (box._min) cuerpo.style.display = 'none'; else cuerpo.style.display = '';
     const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
     const verT = !$('chkLiveTiempos') || $('chkLiveTiempos').checked;
@@ -1700,11 +1911,15 @@ window.Grabadora = null;
     aviso('Texto guardado.', 'ok');
   }
   function abrirLive(){
-    if (!SRClass()){ aviso('El reconocimiento en vivo requiere Chrome/Edge con conexión.', 'err'); return; }
     liveActivo = true;
     if ($('chkSpeech')) $('chkSpeech').checked = true;
-    if ($('avisoSpeech')) $('avisoSpeech').style.display = 'block';
-    if ($('livePriv')) $('livePriv').classList.add('on');
+    if ($('avisoSpeech')) $('avisoSpeech').style.display = esCapturaPC() ? 'none' : 'block';
+    if ($('livePriv')){
+      $('livePriv').classList.add('on');
+      $('livePriv').textContent = esCapturaPC()
+        ? 'Audio de PC/ventana: el texto sale de Whisper local. No usa el micrófono del sistema.'
+        : 'El reconocimiento del navegador oye el micrófono de este equipo.';
+    }
     pintarLive(true);
     if (estado === GRABANDO) arrancarSpeech();
   }
@@ -1738,6 +1953,31 @@ window.Grabadora = null;
     }
     return new Blob([buf], { type:'audio/wav' });
   }
+  async function asegurarWhisperLive(){
+    try{ await loadWhisper(); }catch(_){}
+    const eng = window.WhisperEngine;
+    if (!eng) return false;
+    if (eng.estado && eng.estado() === 'listo') return true;
+    try{
+      if ($('livePriv')) $('livePriv').textContent = 'Descargando Whisper para oír el audio de la PC (~75 MB, una vez)…';
+      await descargarIdioma(idiomaWhSel() || 'auto', { silencio:true });
+    }catch(e){
+      aviso('Sin Whisper no hay subtítulos del audio de la PC. '+(e.message||e), 'err');
+      return false;
+    }
+    return !!(eng.estado && eng.estado() === 'listo');
+  }
+  async function transcribirLiveBlob(blob){
+    if (!blob || blob.size < 64) return;
+    const eng = window.WhisperEngine;
+    if (!eng || !eng.transcribir) return;
+    try{
+      const r = await eng.transcribir(blob, { idioma: livePar().src });
+      const segs = (r && r.segmentos) || [];
+      const txt = segs.map(s => s.texto).join(' ').trim();
+      if (txt) meterLiveTexto(txt);
+    }catch(_){}
+  }
   async function flushLiveCap(){
     if (liveCap.busy || !liveCap.buf.length) return;
     liveCap.busy = true;
@@ -1751,17 +1991,11 @@ window.Grabadora = null;
       let e = 0;
       for (let i = 0; i < pcm.length; i += 64) e += pcm[i] * pcm[i];
       if (e / Math.max(1, pcm.length / 64) < 1e-6) return;
-      const eng = window.WhisperEngine;
-      if (!eng || !eng.transcribir || (eng.estado && eng.estado() !== 'listo')) return;
-      const r = await eng.transcribir(wavDePcm(pcm, sr), { idioma: livePar().src });
-      const segs = (r && r.segmentos) || [];
-      const txt = segs.map(s => s.texto).join(' ').trim();
-      if (txt) meterLiveTexto(txt);
+      await transcribirLiveBlob(wavDePcm(pcm, sr));
     }catch(_){}
     finally { liveCap.busy = false; }
   }
-  function arrancarLiveCap(){
-    pararLiveCap();
+  function arrancarLivePcm(){
     if (!ctx || !streamToma) return false;
     try{
       liveCap.src = ctx.createMediaStreamSource(streamToma);
@@ -1778,23 +2012,57 @@ window.Grabadora = null;
         if (n >= ((ctx.sampleRate || 48000) * 2.6) && !liveCap.busy) flushLiveCap();
       };
       return true;
-    }catch(_){ pararLiveCap(); return false; }
+    }catch(_){ return false; }
   }
-  function arrancarSpeech(){
+  function cicloLiveRec(){
+    if (estado !== GRABANDO || !speechOn() || !streamToma) return;
+    const tracks = streamToma.getAudioTracks().filter(t => t.readyState === 'live');
+    if (!tracks.length){ arrancarLivePcm(); return; }
+    const tok = ++liveCap.tok;
+    let rec;
+    try{
+      const tipo = mimeAudio();
+      rec = tipo ? new MediaRecorder(streamToma, { mimeType: tipo }) : new MediaRecorder(streamToma);
+    }catch(_){ arrancarLivePcm(); return; }
+    const chunks = [];
+    rec.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    rec.onstop = () => {
+      if (tok !== liveCap.tok) return;
+      if (chunks.length) transcribirLiveBlob(new Blob(chunks, { type: rec.mimeType || 'audio/webm' }));
+      if (estado === GRABANDO && speechOn()) cicloLiveRec();
+    };
+    liveCap.rec = rec;
+    try{ rec.start(); }catch(_){ arrancarLivePcm(); return; }
+    setTimeout(() => {
+      if (tok !== liveCap.tok) return;
+      if (rec.state === 'recording') try{ rec.stop(); }catch(_){}
+    }, 2500);
+  }
+  function arrancarLiveCap(){
+    pararLiveCap();
+    if (!streamToma || !streamToma.getAudioTracks().length) return false;
+    cicloLiveRec();
+    return true;
+  }
+  async function arrancarSpeech(){
     pararSpeech();
     if (!speechOn()) return;
     speechT0 = ahoraRec();
-    const captura = fuenteActiva && fuenteActiva !== 'mic';
-    if (captura){
-      const ok = arrancarLiveCap();
-      const listo = window.WhisperEngine && window.WhisperEngine.estado && window.WhisperEngine.estado() === 'listo';
-      if (ok && listo){
-        if ($('livePriv')) $('livePriv').textContent = 'Pestaña/pantalla: el texto sale del audio capturado (Whisper, local).';
+    if (esCapturaPC()){
+      if ($('livePriv')) $('livePriv').textContent = 'Audio de PC/ventana: Whisper local. No usa el micrófono del sistema.';
+      const okCap = arrancarLiveCap();
+      const okWh = await asegurarWhisperLive();
+      if (okCap && okWh){
+        if ($('livePriv')) $('livePriv').textContent = 'Oyendo el audio capturado (Whisper). Las voces se etiquetan al generar texto de la toma.';
         return;
       }
-      if ($('livePriv')) $('livePriv').textContent = 'El reconocimiento del navegador solo oye el micrófono. En pestaña/pantalla descarga Whisper o marca «Compartir audio».';
+      if (!okWh) aviso('Descarga Whisper para subtítulos del audio de la PC.', 'err');
+      return;
     }
-    const C = SRClass(); if (!C) return;
+    const C = SRClass(); if (!C){
+      if (arrancarLiveCap()) asegurarWhisperLive();
+      return;
+    }
     const r = new C();
     r.lang = langSpeech(livePar().src);
     r.continuous = true; r.interimResults = true;
@@ -1976,15 +2244,27 @@ window.Grabadora = null;
     }
     return out;
   }
+  function habActivo(){ return !!(($('chkHabRap') && $('chkHabRap').checked) || ($('chkHablantes') && $('chkHablantes').checked)); }
+  function habModo(){ return ($('chkHablantes') && $('chkHablantes').checked) ? 'profesional' : (($('chkHabRap') && $('chkHabRap').checked) ? 'ligero' : ''); }
+  async function pintarIcoHab(){
+    const ico = $('icoHabPro'); if (!ico) return;
+    const eng = window.DiarizationEngine;
+    let hay = false;
+    try { hay = !!(eng && eng.hayCache && await eng.hayCache()); } catch(_){}
+    const listo = !!(eng && eng.estado && eng.estado() === 'listo');
+    ico.textContent = listo || hay ? '✅' : '☁️';
+    ico.title = listo || hay ? 'Modelo profesional en caché' : 'No descargado';
+  }
   async function etiquetarHablantes(blob){
     const cues = cuesDePista();
     if (!cues.length){ aviso('No hay subtítulos que etiquetar.', 'err'); return 0; }
     if (!blob){ aviso('Elige una toma con audio.', 'err'); return 0; }
+    const modo = habModo() || 'ligero';
     const eng = window.DiarizationEngine;
     if (!eng || !eng.diarizar){ aviso('Sin motor de diarización.', 'info'); return 0; }
-    aviso('Detectando hablantes…', 'info');
+    aviso(modo === 'profesional' ? 'Diarización profesional…' : 'Agrupando por timbre…', 'info');
     const maxK = Math.max(2, Math.min(4, +(($('selMaxHab')||{}).value || 3)));
-    const r = await eng.diarizar(blob, { cues: cues, maxK: maxK });
+    const r = await eng.diarizar(blob, { cues: cues, maxK: maxK, modo: modo });
     const fusion = eng.fusionar ? eng.fusionar(cues, r.turnos || []) : (r.turnos || []);
     enLote('hablantes', () => {
       fusion.forEach(t => {
@@ -1996,7 +2276,8 @@ window.Grabadora = null;
     });
     pintarCues();
     const n = new Set(fusion.map(t => t.hablante).filter(Boolean)).size;
-    aviso(n+' hablante'+(n===1?'':'s')+' en la toma.', 'ok');
+    const tag = (r && r.modo === 'profesional') ? 'profesional' : 'rápido';
+    aviso(n+' hablante'+(n===1?'':'s')+' ('+tag+').', 'ok');
     return n;
   }
   function blobTomaActiva(){
@@ -2135,17 +2416,18 @@ window.Grabadora = null;
     try { await descargarIdioma(code); }
     catch(e){ setProg(null); setIcoLang('off'); aviso(msgDescarga(e), 'err'); }
   }
+  const GS_VER = '20260912q';
   function registrarSW(){
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
-    const url = (() => { try { return new URL('whisper-sw.js', location.href).href; } catch(_){ return 'whisper-sw.js'; } })();
+    const url = (() => { try { return new URL('whisper-sw.js?v='+GS_VER, location.href).href; } catch(_){ return 'whisper-sw.js?v='+GS_VER; } })();
     navigator.serviceWorker.register(url).catch(() => {});
   }
   let weCarga = null;
   function urlsWhisper(){
     const out = [];
-    try { out.push(new URL('WhisperEngine.js', location.href).href); } catch(_){}
-    out.push('WhisperEngine.js');
-    out.push('./WhisperEngine.js');
+    try { out.push(new URL('WhisperEngine.js?v='+GS_VER, location.href).href); } catch(_){}
+    out.push('WhisperEngine.js?v='+GS_VER);
+    out.push('./WhisperEngine.js?v='+GS_VER);
     return out.filter((u, i, a) => a.indexOf(u) === i);
   }
   function inyectarScript(src){
@@ -2186,9 +2468,9 @@ window.Grabadora = null;
   }
   function urlsDiar(){
     const out = [];
-    try { out.push(new URL('DiarizationEngine.js', location.href).href); } catch(_){}
-    out.push('DiarizationEngine.js');
-    out.push('./DiarizationEngine.js');
+    try { out.push(new URL('DiarizationEngine.js?v='+GS_VER, location.href).href); } catch(_){}
+    out.push('DiarizationEngine.js?v='+GS_VER);
+    out.push('./DiarizationEngine.js?v='+GS_VER);
     return out.filter((u, i, a) => a.indexOf(u) === i);
   }
   let diarCarga = null;
@@ -2197,14 +2479,14 @@ window.Grabadora = null;
     caja.hidden = !on;
   }
   function loadDiarization(){
-    if (window.DiarizationEngine){ mostrarCajaHab(true); return Promise.resolve(true); }
+    if (window.DiarizationEngine){ mostrarCajaHab(true); pintarIcoHab(); return Promise.resolve(true); }
     if (diarCarga) return diarCarga;
     diarCarga = (async () => {
       const urls = urlsDiar();
       for (let i = 0; i < urls.length; i++){
         try {
           await inyectarScript(urls[i]);
-          if (window.DiarizationEngine){ mostrarCajaHab(true); return true; }
+          if (window.DiarizationEngine){ mostrarCajaHab(true); pintarIcoHab(); return true; }
         } catch(_){}
       }
       mostrarCajaHab(false);
@@ -2275,7 +2557,7 @@ window.Grabadora = null;
     const segs = await vadDeBlob(m.blob);
     if (!segs.length){ aviso('VAD: no hay voz.', 'err'); return; }
     const n = meterCues(segs);
-    if ($('chkHablantes') && $('chkHablantes').checked) await etiquetarHablantes(m.blob);
+    if (habActivo()) await etiquetarHablantes(m.blob);
     aviso(n+' marcas [Voz local].', 'ok');
   }
   async function transcribirToma(id){
@@ -2294,7 +2576,7 @@ window.Grabadora = null;
         const segs = (r && r.segmentos) || [];
         if (!segs.length){ aviso('Whisper no detectó voz.', 'err'); return 0; }
         const n = meterCues(segs);
-        if ($('chkHablantes') && $('chkHablantes').checked) await etiquetarHablantes(m.blob);
+        if (habActivo()) await etiquetarHablantes(m.blob);
         const seg = (r && r.ms) ? (r.ms/1000).toFixed(1)+'s' : '';
         if ($('chkTiempos') && $('chkTiempos').checked && seg){
           if ($('lapsoWh')){ $('lapsoWh').style.display = 'block'; $('lapsoWh').textContent = 'Transcripción: '+seg; }
@@ -2306,7 +2588,7 @@ window.Grabadora = null;
       const segs = await vadDeBlob(m.blob);
       if (!segs.length){ aviso('VAD: no hay voz.', 'err'); return 0; }
       const n = meterCues(segs);
-      if ($('chkHablantes') && $('chkHablantes').checked) await etiquetarHablantes(m.blob);
+      if (habActivo()) await etiquetarHablantes(m.blob);
       aviso(n+' marcas de voz [Voz local].', 'ok'); return n;
     }catch(e){ setProg(null); aviso(msgDescarga(e), 'err'); return 0; }
   }
@@ -2402,6 +2684,91 @@ window.Grabadora = null;
     d.textContent = (pass?'✓ ':'✗ ')+nom+' — '+por;
     $('testOut').appendChild(d); return pass;
   }
+  function rgbNums(c){
+    if (!c) return null;
+    const m = String(c).match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i);
+    if (m) return [+m[1], +m[2], +m[3]];
+    const h = String(c).replace('#','');
+    if (/^[0-9a-f]{3}$/i.test(h)) return [0,1,2].map(i => parseInt(h[i]+h[i], 16));
+    if (/^[0-9a-f]{6}$/i.test(h)) return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+    return null;
+  }
+  function lumRgb(rgb){
+    const n = rgb.map(v => { v = v/255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); });
+    return 0.2126*n[0] + 0.7152*n[1] + 0.0722*n[2];
+  }
+  function contrasteEstilo(col, fondo){
+    const a = rgbNums(col), b = rgbNums(fondo);
+    if (!a || !b) return 0;
+    const L1 = lumRgb(a), L2 = lumRgb(b);
+    return (Math.max(L1,L2)+0.05) / (Math.min(L1,L2)+0.05);
+  }
+  function nombreAccesible(el){
+    const aria = (el.getAttribute('aria-label')||'').trim();
+    if (aria) return aria;
+    const labelled = el.getAttribute('aria-labelledby');
+    if (labelled){
+      const t = labelled.split(/\s+/).map(id => { const n = document.getElementById(id); return n ? n.textContent : ''; }).join(' ').trim();
+      if (t) return t;
+    }
+    const txt = Array.from(el.childNodes).filter(n => n.nodeType === 1 ? n.getAttribute('aria-hidden') !== 'true' : n.nodeType === 3).map(n => n.textContent||'').join(' ').replace(/\s+/g,' ').trim();
+    if (txt) return txt;
+    return (el.getAttribute('title')||'').trim();
+  }
+  function botonesVisibles(){
+    return Array.from(document.querySelectorAll('#app button, #liveBox button')).filter(b => {
+      const s = getComputedStyle(b);
+      return s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0';
+    });
+  }
+  function auditarWCAG(){
+    const box = $('testOut'); if (!box) return;
+    const tit = document.createElement('div');
+    tit.className = 'test';
+    tit.style.color = 'var(--muted)';
+    tit.textContent = 'WCAG 2.2 AA — botones';
+    box.appendChild(tit);
+    ok('html lang', !!(document.documentElement.lang), document.documentElement.lang || 'falta');
+    const css = Array.from(document.styleSheets).map(ss => { try { return Array.from(ss.cssRules||[]).map(r => r.cssText).join('\n'); } catch(_){ return ''; } }).join('\n');
+    ok('2.4.7 foco visible', /:focus-visible/.test(css), /:focus-visible/.test(css) ? 'regla presente' : 'sin :focus-visible');
+    const bots = botonesVisibles();
+    let sinNom = 0, chicos = 0, sinTipo = 0;
+    const detalleNom = [];
+    bots.forEach(b => {
+      if (!nombreAccesible(b)){ sinNom++; detalleNom.push(b.id || b.className || '?'); }
+      const r = b.getBoundingClientRect();
+      if (r.width && r.height && (r.width < 24 || r.height < 24)) chicos++;
+      if ((b.getAttribute('type')||'').toLowerCase() !== 'button' && b.closest('form')) sinTipo++;
+    });
+    ok('4.1.2 nombre accesible', sinNom === 0, sinNom ? ('faltan '+sinNom+': '+detalleNom.slice(0,6).join(', ')) : bots.length+' botones');
+    ok('2.5.8 tamaño ≥ 24px', chicos === 0, chicos ? (chicos+' por debajo de 24px') : 'ok');
+    ok('type=button en formularios', sinTipo === 0, sinTipo ? sinTipo+' sin type' : 'ok');
+    const toggles = ['bSimple','bAvanzado','bLiveOpen','bLiveTrad'];
+    let tap = 0;
+    toggles.forEach(id => { const el = $(id); if (el && !el.hasAttribute('aria-pressed')) tap++; });
+    ok('1.3.1 aria-pressed en toggles', tap === 0, tap ? (tap+' sin pressed') : 'ok');
+    const exp = $('bExpMenu'), gear = $('bLiveGear');
+    ok('4.1.2 menú Exportar', !!(exp && exp.getAttribute('aria-expanded') != null && exp.getAttribute('aria-haspopup')), exp ? 'aria-expanded/haspopup' : 'no hay botón');
+    ok('4.1.2 menú ⚙', !!(gear && gear.getAttribute('aria-haspopup')), gear ? 'haspopup' : 'no hay ⚙');
+    const hero = $('bTranscribir'), rec = $('bGrabar');
+    if (hero){
+      const s = getComputedStyle(hero);
+      const r = contrasteEstilo(s.color, s.backgroundColor);
+      ok('1.4.3 contraste Generar texto', r >= 4.5, r.toFixed(2)+':1');
+    }
+    if (rec){
+      const s = getComputedStyle(rec);
+      const ico = contrasteEstilo('#ffffff', s.backgroundColor.indexOf('rgb')===0 ? s.backgroundColor : '#FF3B6B');
+      ok('1.4.11 icono Grabar', ico >= 3, ico.toFixed(2)+':1');
+    }
+    const live = $('bLiveOpen');
+    if (live){
+      const s = getComputedStyle(live);
+      const r = contrasteEstilo(s.color, s.backgroundColor);
+      ok('1.4.3 contraste En vivo', r >= 4.5, r.toFixed(2)+':1 (AA texto)');
+    }
+    ok('Escape cierra menús', typeof cerrarMenuLive === 'function', 'handler listo');
+  }
   function correrBanco(){
     $('testOut').innerHTML = '';
     ok('P.sel es string o null', P.sel == null || typeof P.sel === 'string', String(P.sel));
@@ -2410,10 +2777,26 @@ window.Grabadora = null;
     ok('VTT', leerVTT('WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nA\n').length===1, '1');
     ok('vadDeBlob fn', typeof vadDeBlob === 'function', typeof vadDeBlob);
     ok('loadWhisper fn', typeof loadWhisper === 'function', typeof loadWhisper);
+    auditarWCAG();
   }
 
   $('fuente').onchange = hintFuente; hintFuente();
   $('filtrosMic').onchange = () => { micFiltros = null; };
+  if ($('gananciaCap')){
+    $('gananciaCap').oninput = aplicarGanancia;
+    pintarGanancia();
+  }
+  if ($('chkNormRms')){
+    $('chkNormRms').onchange = () => {
+      const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+      p.normRms = !!$('chkNormRms').checked;
+      salvarUI(p);
+      if (autoGain){
+        autoGain.gain.cancelScheduledValues && autoGain.gain.cancelScheduledValues(0);
+        autoGain.gain.value = p.normRms ? autoGain.gain.value : 1;
+      }
+    };
+  }
   if ($('selCodec')) $('selCodec').onchange = () => {
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
     p.codec = $('selCodec').value || '';
@@ -2454,31 +2837,42 @@ window.Grabadora = null;
   if ($('bGestIdiomas')) $('bGestIdiomas').onclick = () => abrirIdiomas();
   if ($('bIdiomasX')) $('bIdiomasX').onclick = () => cerrarIdiomas();
   if ($('selIdiomaWh')) $('selIdiomaWh').onchange = () => onIdiomaWh();
+  if ($('chkHabRap')) $('chkHabRap').onchange = () => {
+    if ($('chkHabRap').checked && $('chkHablantes')) $('chkHablantes').checked = false;
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.habRapido = !!$('chkHabRap').checked;
+    p.hablantesOn = !!( $('chkHablantes') && $('chkHablantes').checked );
+    salvarUI(p); pintarCues();
+  };
   if ($('chkHablantes')) $('chkHablantes').onchange = async () => {
     const on = !!$('chkHablantes').checked;
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
     if (on){
+      if ($('chkHabRap')) $('chkHabRap').checked = false;
       const eng = window.DiarizationEngine;
-      if (!eng){ $('chkHablantes').checked = false; aviso('Requiere motor de diarización.', 'info'); return; }
+      if (!eng){ $('chkHablantes').checked = false; aviso('Requiere DiarizationEngine.js al lado del HTML.', 'info'); return; }
       try {
         const hay = eng.hayCache ? await eng.hayCache() : false;
-        if (!hay && !confirm('Descargar modelo de hablantes (~6 MB, una vez, 100% local)?')){
+        if (!hay && !confirm('Descargar modelo profesional (~6 MB, una vez, 100% local). ¿Descargar?')){
           $('chkHablantes').checked = false; return;
         }
         if (eng.estado && eng.estado() !== 'listo'){
           downCancel = false; setProg(1);
           await eng.cargar({ onProgreso: q => setProg(pctProgreso(q)) });
           setProg(100); setTimeout(() => setProg(null), 400);
-          aviso('Modelo de hablantes listo.', 'ok');
+          aviso('Modelo listo. Precisión mejorada.', 'ok');
         }
       } catch(e){
         setProg(null);
         $('chkHablantes').checked = false;
-        aviso('No se pudo bajar el modelo de hablantes.', 'err');
+        aviso('Hugging Face no entregó el ONNX: '+(e.message||e)+'. Puedes usar el modo rápido.', 'err');
         return;
       }
     }
-    p.hablantesOn = !!$('chkHablantes').checked; salvarUI(p);
+    p.hablantesOn = !!$('chkHablantes').checked;
+    p.habRapido = !!( $('chkHabRap') && $('chkHabRap').checked );
+    salvarUI(p);
+    pintarIcoHab();
     pintarCues();
   };
   if ($('chkTiempos')) $('chkTiempos').onchange = () => {
@@ -2525,11 +2919,15 @@ window.Grabadora = null;
     if ($('liveLang')) $('liveLang').value = b.value;
     aplicarParLive(true);
   };
-  function cerrarMenuLive(){ const b = $('liveBox'); if (b) b.classList.remove('menu-on'); }
+  function cerrarMenuLive(){
+    const b = $('liveBox'); if (b) b.classList.remove('menu-on');
+    if ($('bLiveGear')) $('bLiveGear').setAttribute('aria-expanded', 'false');
+  }
   function abrirMenuLive(ev){
     if (ev) ev.stopPropagation();
     const b = $('liveBox'); if (!b) return;
     b.classList.toggle('menu-on');
+    if ($('bLiveGear')) $('bLiveGear').setAttribute('aria-expanded', b.classList.contains('menu-on') ? 'true' : 'false');
     if ($('liveIdiomaWh') && $('selIdiomaWh')) $('liveIdiomaWh').value = $('selIdiomaWh').value;
     const menu = $('liveMenu');
     if (menu && b.classList.contains('menu-on')){
@@ -2698,7 +3096,27 @@ window.Grabadora = null;
   $('bX').onclick = () => { if (estado===GRABANDO || estado===PAUSADO) detener(); soltarMic(); };
   $('bBanco').onclick = () => $('banco').classList.toggle('on');
   $('bRun').onclick = correrBanco;
+  if ($('bWcag')) $('bWcag').onclick = () => { $('testOut').innerHTML = ''; auditarWCAG(); };
   $('bImpSrt').onclick = () => $('fSrt').click();
+  if ($('bExpMenu')){
+    $('bExpMenu').onclick = ev => {
+      ev.stopPropagation();
+      if ($('bExpMenu').disabled) return;
+      $('expWrap').classList.toggle('on');
+      $('bExpMenu').setAttribute('aria-expanded', $('expWrap').classList.contains('on') ? 'true' : 'false');
+    };
+    document.addEventListener('click', ev => {
+      if ($('expWrap') && !ev.target.closest('#expWrap')){
+        $('expWrap').classList.remove('on');
+        $('bExpMenu').setAttribute('aria-expanded', 'false');
+      }
+    });
+    document.addEventListener('keydown', ev => {
+      if (ev.key !== 'Escape') return;
+      if ($('expWrap')){ $('expWrap').classList.remove('on'); $('bExpMenu').setAttribute('aria-expanded', 'false'); }
+      cerrarMenuLive();
+    });
+  }
   $('fSrt').onchange = ev => {
     const f = ev.target.files && ev.target.files[0]; if (!f) return;
     const r = new FileReader();
@@ -2710,19 +3128,40 @@ window.Grabadora = null;
     };
     r.readAsText(f); ev.target.value = '';
   };
-  $('bExpSrt').onclick = () => exportar('srt');
-  $('bExpVtt').onclick = () => exportar('vtt');
-  $('bExpTxt').onclick = () => exportar('txt');
-  $('bExpJson').onclick = () => exportar('json');
-  $('bCopiar').onclick = () => copiarCues();
+  function cerrarExp(){ if ($('expWrap')) $('expWrap').classList.remove('on'); if ($('bExpMenu')) $('bExpMenu').setAttribute('aria-expanded','false'); }
+  $('bExpSrt').onclick = () => { cerrarExp(); exportar('srt'); };
+  $('bExpVtt').onclick = () => { cerrarExp(); exportar('vtt'); };
+  $('bExpTxt').onclick = () => { cerrarExp(); exportar('txt'); };
+  $('bExpJson').onclick = () => { cerrarExp(); exportar('json'); };
+  $('bCopiar').onclick = () => { cerrarExp(); copiarCues(); };
   $('bTraducir').onclick = () => traducirCues();
   $('bTraducirUndo').onclick = () => restaurarOriginal();
-  $('bDivCue').onclick = () => dividirCue();
-  $('bFusCue').onclick = () => fusionarCues();
-  $('bBusSig').onclick = () => buscarSiguiente();
-  $('bRepUno').onclick = () => reemplazarUno();
-  $('bRepTodo').onclick = () => reemplazarTodo();
-  $('cajaCues').addEventListener('keydown', atajosCues);
+  function abrirBuscaCues(){
+    const card = $('cardCues'); if (!card) return;
+    card.classList.add('busca-on');
+    if ($('bBusCues')) $('bBusCues').setAttribute('aria-expanded', 'true');
+    if ($('busCue')) $('busCue').focus();
+  }
+  function cerrarBuscaCues(){
+    const card = $('cardCues'); if (card) card.classList.remove('busca-on');
+    if ($('bBusCues')) $('bBusCues').setAttribute('aria-expanded', 'false');
+    if ($('cajaCues')) $('cajaCues').focus();
+  }
+  if ($('bBusCues')) $('bBusCues').onclick = () => {
+    const card = $('cardCues');
+    if (card && card.classList.contains('busca-on')) cerrarBuscaCues();
+    else abrirBuscaCues();
+  };
+  if ($('bBusX')) $('bBusX').onclick = cerrarBuscaCues;
+  if ($('bBusSig')) $('bBusSig').onclick = () => buscarSiguiente();
+  if ($('bRepTodo')) $('bRepTodo').onclick = () => reemplazarTodo();
+  if ($('busCue')) $('busCue').onkeydown = ev => { if (ev.key === 'Enter'){ ev.preventDefault(); buscarSiguiente(); } if (ev.key === 'Escape') cerrarBuscaCues(); };
+  if ($('repCue')) $('repCue').onkeydown = ev => { if (ev.key === 'Enter'){ ev.preventDefault(); reemplazarUno(); } if (ev.key === 'Escape') cerrarBuscaCues(); };
+  if ($('bCtxFus')) $('bCtxFus').onclick = () => { if ($('cueMenu')) $('cueMenu').classList.remove('on'); fusionarCues(); };
+  document.addEventListener('click', ev => {
+    if ($('cueMenu') && !ev.target.closest('#cueMenu')) $('cueMenu').classList.remove('on');
+  });
+  if ($('cardCues')) $('cardCues').addEventListener('keydown', atajosCues);
   $('bTranscribir').onclick = () => pedirGenerar();
   $('bWhisperDown').onclick = async () => {
     try { await descargarIdioma(idiomaWhSel()); await pintarListaIdiomas(); }
@@ -2752,13 +3191,7 @@ window.Grabadora = null;
     pararPlayer(); soltarMic();
     try { if (window.WhisperEngine && window.WhisperEngine.liberar) window.WhisperEngine.liberar(); } catch(_){}
   });
-  function pintarIconos(){
-    try{
-      if (window.lucide && lucide.createIcons){
-        lucide.createIcons({ attrs: { width: 15, height: 15, 'stroke-width': 1.75 } });
-      }
-    }catch(_){}
-  }
+  function pintarIconos(){}
   aplicarUI();
   pintarIconos();
   pintarBadge(); pintarOnda(false); pintarLista(); pintarCues();
@@ -2770,6 +3203,7 @@ window.Grabadora = null;
   window.Subtitulos = { leerSRT, leerVTT, escribirSRT, escribirVTT };
   window.P = P; window.PISTAS = PISTAS; window.ENTORNO = ENTORNO;
 })();
+
 </script>
 </body>
 </html>
