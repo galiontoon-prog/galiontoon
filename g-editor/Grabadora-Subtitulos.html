@@ -61,6 +61,21 @@ h1{margin:4px 0 12px;font-size:18px;font-weight:800;letter-spacing:.04em}
 .chk{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;color:var(--secu);cursor:pointer}
 .chk input{appearance:none;-webkit-appearance:none;width:15px;height:15px;margin:0;border:1.5px solid #3a3a4a;border-radius:3px;background:transparent;flex:0 0 15px}
 .chk input:checked{background:var(--rosa);border-color:var(--rosa);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path stroke='white' stroke-width='1.8' fill='none' d='M2.2 6.2l2.6 2.6 5-5.4'/></svg>");background-size:10px;background-repeat:no-repeat;background-position:center}
+.habLead{text-align:left;margin:0 0 10px}
+.habOpt{display:flex;align-items:flex-start;gap:8px;margin:0;font-size:13px;color:var(--texto);cursor:pointer;line-height:1.25}
+.habOpt input[type=radio]{appearance:none;-webkit-appearance:none;width:15px;height:15px;margin:2px 0 0;border:1.5px solid #3a3a4a;border-radius:50%;background:transparent;flex:0 0 15px}
+.habOpt input[type=radio]:checked{border-color:var(--rosa);background:radial-gradient(circle at center,var(--rosa) 0 4px,transparent 5px)}
+.habOff{margin:0 0 8px;color:var(--secu)}
+.habPack{border:1px solid var(--borde);border-radius:8px;padding:8px;margin:0 0 8px;background:#16161e;display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center;transition:border-color .15s,background .15s}
+.habPack.on{border-color:#5a2a38;background:#1c151a}
+.habNom{display:block;font-weight:650}
+.habTag{display:inline-block;margin-left:6px;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--verde);vertical-align:1px}
+.habMeta{display:block;margin-top:3px;font-size:11px;color:var(--muted)}
+.habAcc{display:flex;flex-direction:column;gap:6px;min-width:108px}
+.habAcc .btn{height:32px;padding:0 10px;font-size:12px}
+.habDel{opacity:.75}
+.habTools{opacity:.45;pointer-events:none}
+#cajaHab.hab-on .habTools{opacity:1;pointer-events:auto}
 .filaGain{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;margin:0 0 8px}
 .filaGain span{font-size:11px;color:var(--secu);white-space:nowrap}
 .filaGain input[type=range]{width:100%;height:6px;accent-color:var(--verde)}
@@ -412,31 +427,41 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     <label class="chk solo-adv"><input type="checkbox" id="chkTiempos"> Mostrar tiempos</label>
     <p class="hint solo-adv" id="lapsoWh" style="display:none;text-align:left"></p>
     <button type="button" class="btn solo-adv" id="bGestIdiomas">Gestionar idiomas</button>
-    <div id="cajaHab" class="solo-adv" hidden>
+    <input type="file" id="fSrt" accept=".srt,.vtt,text/vtt" hidden>
+  </section>
+
+  <section class="card solo-adv" id="cajaHab">
     <p class="tit">Etiquetar hablantes</p>
-    <label class="chk"><input type="radio" name="habVar" id="habOff" value="off" checked> Desactivado</label>
-    <label class="chk"><input type="radio" name="habVar" id="habFp16" value="fp16"> Rápido · Gran precisión</label>
-    <p class="hint" style="text-align:left;margin:0 0 6px">⚡ WebGPU · ~28 MB · ~90–95% <span id="icoFp16" class="icoLang">☁️</span></p>
-    <div class="grid2" style="margin-bottom:8px">
-      <button type="button" class="btn" id="bDownFp16">☁️ Descargar</button>
-      <button type="button" class="btn" id="bDelFp16">Borrar</button>
+    <p class="hint habLead">Se aplica al generar texto de la toma. Nada sale del equipo.</p>
+    <label class="habOpt habOff"><input type="radio" name="habVar" id="habOff" value="off" checked> Desactivado</label>
+    <div class="habPack" data-var="fp16">
+      <label class="habOpt" for="habFp16">
+        <input type="radio" name="habVar" id="habFp16" value="fp16">
+        <span><span class="habNom">Rápido · Gran precisión <span class="habTag">recomendado</span></span><span class="habMeta">WebGPU · ~28 MB · ~90–95% <span id="icoFp16">☁️</span></span></span>
+      </label>
+      <div class="habAcc">
+        <button type="button" class="btn" id="bDownFp16">☁️ Descargar</button>
+        <button type="button" class="btn habDel" id="bDelFp16" hidden>Borrar</button>
+      </div>
     </div>
-    <label class="chk"><input type="radio" name="habVar" id="habFp32" value="fp32"> Máxima precisión · Más lento</label>
-    <p class="hint" style="text-align:left;margin:0 0 6px">🎯 WebGPU/WASM · ~31 MB · ~95–98% <span id="icoFp32" class="icoLang">☁️</span></p>
-    <div class="grid2" style="margin-bottom:8px">
-      <button type="button" class="btn" id="bDownFp32">☁️ Descargar</button>
-      <button type="button" class="btn" id="bDelFp32">Borrar</button>
+    <div class="habPack" data-var="fp32">
+      <label class="habOpt" for="habFp32">
+        <input type="radio" name="habVar" id="habFp32" value="fp32">
+        <span><span class="habNom">Máxima precisión · Más lento</span><span class="habMeta">WebGPU / WASM · ~31 MB · ~95–98% <span id="icoFp32">☁️</span></span></span>
+      </label>
+      <div class="habAcc">
+        <button type="button" class="btn" id="bDownFp32">☁️ Descargar</button>
+        <button type="button" class="btn habDel" id="bDelFp32" hidden>Borrar</button>
+      </div>
     </div>
-    <div class="grid2 solo-adv" style="margin-bottom:8px">
+    <div class="grid2 habTools" style="margin-top:2px">
       <select id="selMaxHab" class="btn field" title="Máximo de hablantes">
         <option value="2">Hasta 2</option>
         <option value="3" selected>Hasta 3</option>
         <option value="4">Hasta 4</option>
       </select>
-      <button type="button" class="btn" id="bHablantes">Detectar hablantes</button>
+      <button type="button" class="btn" id="bHablantes">Detectar ahora</button>
     </div>
-    </div>
-    <input type="file" id="fSrt" accept=".srt,.vtt,text/vtt" hidden>
   </section>
 
   <section class="card" id="cardCues">
@@ -2267,13 +2292,24 @@ window.Grabadora = null;
   function habModo(){ return habActivo() ? 'profesional' : ''; }
   async function pintarIcoHab(){
     const eng = window.DiarizationEngine;
+    const sel = habVar();
+    const caja = $('cajaHab');
+    if (caja) caja.classList.toggle('hab-on', sel === 'fp16' || sel === 'fp32');
+    document.querySelectorAll('#cajaHab .habPack').forEach(el => {
+      el.classList.toggle('on', el.getAttribute('data-var') === sel);
+    });
     for (const v of ['fp16','fp32']){
       const ico = $(v==='fp16'?'icoFp16':'icoFp32');
       const btn = $(v==='fp16'?'bDownFp16':'bDownFp32');
+      const del = $(v==='fp16'?'bDelFp16':'bDelFp32');
       let hay = false;
       try { hay = !!(eng && eng.hayCache && await eng.hayCache(v)); } catch(_){}
       if (ico){ ico.textContent = hay ? '✅' : '☁️'; ico.title = hay ? 'Listo' : 'No descargado'; }
-      if (btn) btn.textContent = hay ? '✅ Listo' : '☁️ Descargar';
+      if (btn){
+        btn.textContent = hay ? '✅ Listo' : '☁️ Descargar';
+        btn.disabled = false;
+      }
+      if (del) del.hidden = !hay;
     }
   }
   async function etiquetarHablantes(blob){
@@ -2439,7 +2475,7 @@ window.Grabadora = null;
     try { await descargarIdioma(code); }
     catch(e){ setProg(null); setIcoLang('off'); aviso(msgDescarga(e), 'err'); }
   }
-  const GS_VER = '20260912t';
+  const GS_VER = '20260912v';
   window.GS_SERVER_BASE = window.GS_SERVER_BASE || '';
   function registrarSW(){
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
@@ -2498,9 +2534,8 @@ window.Grabadora = null;
     return out.filter((u, i, a) => a.indexOf(u) === i);
   }
   let diarCarga = null;
-  function mostrarCajaHab(on){
-    const caja = $('cajaHab'); if (!caja) return;
-    caja.hidden = !on;
+  function mostrarCajaHab(){
+    const caja = $('cajaHab'); if (caja) caja.hidden = false;
   }
   function loadDiarization(){
     if (window.DiarizationEngine){ mostrarCajaHab(true); pintarIcoHab(); return Promise.resolve(true); }
@@ -2865,18 +2900,11 @@ window.Grabadora = null;
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
     p.habVar = habVar();
     salvarUI(p);
+    pintarIcoHab();
     pintarCues();
   }
   document.querySelectorAll('input[name="habVar"]').forEach(el => {
-    el.onchange = async () => {
-      salvarHabVar();
-      const v = habVar();
-      if (v !== 'fp16' && v !== 'fp32') return;
-      const eng = window.DiarizationEngine;
-      let hay = false;
-      try { hay = !!(eng && eng.hayCache && await eng.hayCache(v)); } catch(_){}
-      if (!hay) descargarVar(v);
-    };
+    el.onchange = () => salvarHabVar();
   });
   async function descargarVar(v){
     const eng = window.DiarizationEngine;
