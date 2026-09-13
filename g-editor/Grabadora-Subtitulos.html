@@ -1868,14 +1868,20 @@ window.Grabadora = null;
   function SRClass(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
   function speechOn(){ return liveActivo || !!( $('chkSpeech') && $('chkSpeech').checked ); }
   function ahoraRec(){ return (estado === GRABANDO && ctx) ? Math.max(0, ctx.currentTime - t0) : (dur||0); }
-  let liveCap = { proc:null, gain:null, src:null, buf:[], busy:false, rec:null, tok:0 };
+  let liveCap = { proc:null, gain:null, src:null, buf:[], cola:[], busy:false, rec:null, tok:0, sileroOk:null };
+  function liveMsg(s){
+    try { console.info('[En vivo]', s); } catch(_){}
+    if ($('livePriv')){ $('livePriv').classList.add('on'); $('livePriv').textContent = s; }
+    const c = $('liveCuerpo');
+    if (c && !speechCues.length) c.innerHTML = '<div class="fra"><span class="orig">'+String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span></div>';
+  }
   function pararLiveCap(){
     liveCap.tok = (liveCap.tok || 0) + 1;
     try{ if (liveCap.rec && liveCap.rec.state !== 'inactive') liveCap.rec.stop(); }catch(_){}
     try{ if (liveCap.proc) liveCap.proc.disconnect(); }catch(_){}
     try{ if (liveCap.gain) liveCap.gain.disconnect(); }catch(_){}
     try{ if (liveCap.src) liveCap.src.disconnect(); }catch(_){}
-    liveCap = { proc:null, gain:null, src:null, buf:[], busy:false, rec:null, tok:liveCap.tok };
+    liveCap = { proc:null, gain:null, src:null, buf:[], cola: liveCap.cola || [], busy:false, rec:null, tok:liveCap.tok, sileroOk: liveCap.sileroOk };
   }
   function pararSpeech(){
     pararLiveCap();
@@ -2079,21 +2085,42 @@ window.Grabadora = null;
     }
     return whisperListo();
   }
-  async function transcribirLiveBlob(blob){
+  async function vaciarColaLive(){
+    if (!whisperListo()) return;
+    if (!liveCap.cola || !liveCap.cola.length) return;
+    try { console.info('[En vivo] whisper listo, procesando chunks', liveCap.cola.length); } catch(_){}
+    const pend = liveCap.cola.slice(); liveCap.cola = [];
+    for (let i = 0; i < pend.length; i++) await transcribirLiveBlob(pend[i], true);
+  }
+  async function transcribirLiveBlob(blob, yaListo){
     if (!blob || blob.size < 64) return;
     const eng = window.WhisperEngine;
     if (!eng || !eng.transcribir) return;
-    if (!whisperListo()) return;
+    if (!yaListo && !whisperListo()){
+      liveCap.cola = liveCap.cola || [];
+      if (liveCap.cola.length < 12) liveCap.cola.push(blob);
+      liveMsg('Cargando modelo… los audios se procesarán al terminar.');
+      return;
+    }
     try{
       let voz = null;
-      try { if (eng.vad) voz = await eng.vad(blob); }
-      catch(e){ try { console.warn('[En vivo] Silero', e); } catch(__){} voz = null; }
+      try {
+        if (eng.vad) voz = await eng.vad(blob);
+        if (voz && voz.length) liveCap.sileroOk = true;
+      } catch(e){
+        try { console.warn('[En vivo] Silero', e); } catch(__){}
+        voz = null;
+      }
       if (!voz || !voz.length){
+        if (liveCap.sileroOk !== true){
+          liveCap.sileroOk = false;
+          liveMsg('VAD Silero no disponible. La transcripción en vivo puede ser imprecisa con audio de PC.');
+        }
         try { console.info('[En vivo] VAD energía (fallback)'); } catch(_){}
         voz = await vadDeBlob(blob);
       }
       const durVoz = (voz||[]).reduce((a,s) => a + Math.max(0, (s.t1||0)-(s.t0||0)), 0);
-      if (!voz || !voz.length || durVoz < 0.5){
+      if (!voz || !voz.length || durVoz < 0.35){
         try { console.info('[En vivo] chunk sin voz', durVoz); } catch(_){}
         return;
       }
@@ -2108,15 +2135,25 @@ window.Grabadora = null;
         const dur = Math.max(0, (+s.t1||0) - (+s.t0||0));
         const tx = String(s.texto||'').trim();
         if (tx.length < 2) return false;
-        if (dur && dur < 0.5) return false;
+        if (dur && dur < 0.35) return false;
         if (esEcoLive(tx)) return false;
         return true;
       });
       const txt = segs.map(s => s.texto).join(' ').trim();
-      if (txt) meterLiveTexto(txt);
+      if (txt){
+        try { console.info('[En vivo] texto generado:', txt.slice(0, 80)); } catch(_){}
+        meterLiveTexto(txt);
+      }
     }catch(e){
+      const msg = String((e && e.message) || e || '');
+      if (/no listo/i.test(msg)){
+        liveCap.cola = liveCap.cola || [];
+        if (liveCap.cola.length < 12) liveCap.cola.push(blob);
+        liveMsg('Cargando modelo…');
+        return;
+      }
       try { console.warn('[En vivo] Whisper', e); } catch(__){}
-      aviso('Whisper no transcribió el audio en vivo: '+(e.message||e), 'err');
+      aviso('Whisper no transcribió el audio en vivo: '+msg, 'err');
     }
   }
   async function flushLiveCap(){
@@ -2124,19 +2161,27 @@ window.Grabadora = null;
     liveCap.busy = true;
     const piezas = liveCap.buf; liveCap.buf = [];
     try{
-      const sr = (ctx && ctx.sampleRate) || 48000;
+      const ac = liveCap.ac || ctxMix || ctx;
+      const sr = (ac && ac.sampleRate) || 48000;
       let n = 0; for (let i = 0; i < piezas.length; i++) n += piezas[i].length;
       const pcm = new Float32Array(n);
       let o = 0;
       for (let i = 0; i < piezas.length; i++){ pcm.set(piezas[i], o); o += piezas[i].length; }
-      let e = 0;
-      for (let i = 0; i < pcm.length; i += 64) e += pcm[i] * pcm[i];
-      const media = e / Math.max(1, pcm.length / 64);
-      if (media < 1e-8){
-        try { console.warn('[En vivo] chunk en silencio', media); } catch(__){}
+      let pico = 0;
+      for (let i = 0; i < pcm.length; i += 32){
+        const a = Math.abs(pcm[i]); if (a > pico) pico = a;
+      }
+      if (pico < 0.003){
+        try { console.warn('[En vivo] chunk en silencio', pico); } catch(__){}
         return;
       }
-      await transcribirLiveBlob(wavDePcm(pcm, sr));
+      const wav = wavDePcm(pcm, sr);
+      if (!whisperListo()){
+        liveCap.cola = liveCap.cola || [];
+        if (liveCap.cola.length < 12) liveCap.cola.push(wav);
+        return;
+      }
+      await transcribirLiveBlob(wav, true);
     }catch(e){
       try { console.warn('[En vivo] flush', e); } catch(__){}
       aviso('En vivo: no se pudo leer el audio capturado.', 'err');
@@ -2144,25 +2189,37 @@ window.Grabadora = null;
     finally { liveCap.busy = false; }
   }
   function arrancarLivePcm(){
-    if (!ctx || !streamToma){
+    const ac = ctxMix || ctx;
+    if (!ac || !streamToma){
       try { console.warn('[En vivo] sin AudioContext o stream'); } catch(_){}
       return false;
     }
     try{
-      liveCap.src = ctx.createMediaStreamSource(streamToma);
-      liveCap.proc = ctx.createScriptProcessor(4096, 1, 1);
-      liveCap.gain = ctx.createGain(); liveCap.gain.gain.value = 0;
-      liveCap.src.connect(liveCap.proc);
-      liveCap.proc.connect(liveCap.gain);
-      liveCap.gain.connect(ctx.destination);
+      liveCap.ac = ac;
+      if (ctxMix && gainLive){
+        liveCap.proc = ctxMix.createScriptProcessor(4096, 1, 1);
+        liveCap.gain = ctxMix.createGain(); liveCap.gain.gain.value = 0;
+        gainLive.connect(liveCap.proc);
+        liveCap.proc.connect(liveCap.gain);
+        liveCap.gain.connect(ctxMix.destination);
+        try { console.info('[En vivo] tap PCM grafo mezcla'); } catch(_){}
+      } else {
+        liveCap.src = ac.createMediaStreamSource(streamToma);
+        liveCap.proc = ac.createScriptProcessor(4096, 1, 1);
+        liveCap.gain = ac.createGain(); liveCap.gain.gain.value = 0;
+        liveCap.src.connect(liveCap.proc);
+        liveCap.proc.connect(liveCap.gain);
+        liveCap.gain.connect(ac.destination);
+        try { console.info('[En vivo] tap PCM', streamToma.getAudioTracks().length, 'pistas'); } catch(_){}
+      }
       liveCap.buf = [];
+      const sr = ac.sampleRate || 48000;
       liveCap.proc.onaudioprocess = ev => {
         if (estado !== GRABANDO) return;
         liveCap.buf.push(new Float32Array(ev.inputBuffer.getChannelData(0)));
         let n = 0; for (let i = 0; i < liveCap.buf.length; i++) n += liveCap.buf[i].length;
-        if (n >= ((ctx.sampleRate || 48000) * 2.4) && !liveCap.busy) flushLiveCap();
+        if (n >= (sr * 2.4) && !liveCap.busy) flushLiveCap();
       };
-      try { console.info('[En vivo] tap PCM', streamToma.getAudioTracks().length, 'pistas'); } catch(_){}
       return true;
     }catch(e){
       try { console.warn('[En vivo] tap PCM', e); } catch(_){}
@@ -2172,10 +2229,6 @@ window.Grabadora = null;
   }
   function arrancarLiveCap(){
     pararLiveCap();
-    if (!whisperListo()){
-      try { console.warn('[En vivo] Whisper no listo'); } catch(_){}
-      return false;
-    }
     if (!streamToma || !streamToma.getAudioTracks().length){
       try { console.warn('[En vivo] stream sin pista de audio'); } catch(_){}
       return false;
@@ -2188,18 +2241,22 @@ window.Grabadora = null;
     speechT0 = ahoraRec();
     if (esCapturaPC()){
       if ($('livePriv')) $('livePriv').textContent = 'Preparando modelos. La escucha empieza cuando la descarga termine.';
-      try { if (window.WhisperEngine && window.WhisperEngine.asegurarVad) await window.WhisperEngine.asegurarVad(); } catch(_){}
+      const okCap = arrancarLiveCap();
+      if (!okCap){
+        aviso('No hay pista de audio en la captura. Comparte audio de la pestaña o pantalla.', 'err');
+        return;
+      }
+      liveMsg('Cargando modelo… la escucha queda en cola.');
+      try { if (window.WhisperEngine && window.WhisperEngine.asegurarVad) await window.WhisperEngine.asegurarVad(); }
+      catch(e){ try { console.warn('[Silero] no listo', e); } catch(_){} }
       const okWh = await asegurarWhisperLive();
       if (!okWh){
-        aviso('Descarga primero Whisper. Luego pulsa En vivo otra vez.', 'err');
+        aviso('Descarga primero Whisper. Los audios en cola se procesarán cuando esté listo.', 'err');
         return;
       }
-      const okCap = arrancarLiveCap();
-      if (okCap){
-        if ($('livePriv')) $('livePriv').textContent = 'Modelo listo. Oyendo el audio capturado.';
-        return;
-      }
-      aviso('No hay pista de audio en la captura. Comparte audio de la pestaña o pantalla.', 'err');
+      try { console.info('[En vivo] whisper listo, procesando chunks'); } catch(_){}
+      liveMsg('Modelo listo. Oyendo el audio capturado.');
+      await vaciarColaLive();
       return;
     }
     const C = SRClass(); if (!C){
@@ -2601,7 +2658,7 @@ window.Grabadora = null;
     try { await descargarIdioma(code); }
     catch(e){ setProg(null); setIcoLang('off'); aviso(msgDescarga(e), 'err'); }
   }
-  const GS_VER = '20260913c';
+  const GS_VER = '20260913d';
   window.GS_SERVER_BASE = window.GS_SERVER_BASE || '';
   function registrarSW(){
     if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
@@ -2730,6 +2787,7 @@ window.Grabadora = null;
     const n = Math.max(0, Math.min(100, Math.round(pct||0)));
     if (i && pct != null) i.style.width = n+'%';
     if ($('downPct')) $('downPct').textContent = n+'%';
+    if (liveActivo && pct != null && pct < 100) liveMsg('Cargando modelo… '+n+'%');
     const mb = downCtx.totalMb || 75;
     if ($('downMb')) $('downMb').textContent = Math.round(n/100*mb)+' / '+mb+' MB';
     if ($('downFile')){

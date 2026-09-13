@@ -229,43 +229,62 @@
     try { global.ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/'; } catch (_) {}
     return global.ort;
   }
+  function sileroLog() {
+    try { console.info.apply(console, ['[Silero]'].concat([].slice.call(arguments))); } catch (_) {}
+  }
   async function asegurarSilero(onProg) {
     if (sesSilero) return sesSilero;
     var buf = null;
+    var url = CORS_PROXY + RELEASE_WH + SILERO_NOM;
     try {
       var root = await navigator.storage.getDirectory();
       var d = await root.getDirectoryHandle('whisper-engine', { create: true });
       try {
         var fh = await d.getFileHandle(SILERO_NOM, { create: false });
         var file = await fh.getFile();
-        if (file && file.size > 1024) buf = await file.arrayBuffer();
-      } catch (_) {}
+        if (file && file.size > 1024) {
+          buf = await file.arrayBuffer();
+          sileroLog('OPFS', file.size, 'bytes');
+        }
+      } catch (e) { sileroLog('OPFS vacío', e && e.message); }
       if (!buf) {
-        var url = CORS_PROXY + RELEASE_WH + SILERO_NOM;
+        sileroLog('intentando cargar', url);
         if (onProg) onProg({ file: SILERO_NOM, progress: 10 });
         var res = await fetch(url, { mode: 'cors' });
+        sileroLog('HTTP status:', res.status, 'length', res.headers.get('content-length'));
         if (!res.ok) throw new Error('Silero HTTP ' + res.status);
         buf = await res.arrayBuffer();
+        sileroLog('tamaño:', buf.byteLength, 'bytes');
+        if (buf.byteLength < 10000) throw new Error('archivo Silero demasiado pequeño');
         var w = await (await d.getFileHandle(SILERO_NOM, { create: true })).createWritable();
         await w.write(buf); await w.close();
       }
-    } catch (e) { throw e; }
+    } catch (e) {
+      sileroLog('ERROR descarga', e && e.message || e);
+      throw e;
+    }
     var ort = await asegurarOrt();
     var providers = (typeof navigator !== 'undefined' && navigator.gpu) ? ['webgpu', 'wasm'] : ['wasm'];
     var lastOrt = null;
     for (var pi = 0; pi < providers.length; pi++) {
       try {
+        sileroLog('sesión ONNX', providers[pi]);
         sesSilero = await ort.InferenceSession.create(buf, { executionProviders: [providers[pi]] });
         lastOrt = null;
+        sileroLog('sesión ONNX creada OK', providers[pi], sesSilero.inputNames, sesSilero.outputNames);
         break;
-      } catch (e) { lastOrt = e; }
+      } catch (e) {
+        lastOrt = e;
+        sileroLog('ERROR sesión', providers[pi], e && e.message || e);
+      }
     }
     if (!sesSilero) throw lastOrt || new Error('Silero session');
     return sesSilero;
   }
   async function vadSilero(blob) {
     var pcm = await pcm16k(blob);
-    try { await asegurarSilero(); } catch (_) { return null; }
+    try { await asegurarSilero(); }
+    catch (e) { sileroLog('ERROR init', e && e.message || e); return null; }
     var ort = global.ort;
     var hop = 512, sr = 16000, th = 0.5;
     var probs = [];
