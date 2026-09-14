@@ -1,6 +1,5 @@
-/* whisper-sw.js · cache de modelos Whisper (Cache API).
-   Misma carpeta que Grabadora-Subtitulos.html. */
-const CACHE = 'gs-whisper-models-v1';
+/* whisper-sw.js · cache de modelos. Red primero; caché solo si no hay red. */
+const CACHE = 'gs-whisper-models-v2';
 const HOSTS = [
   'huggingface.co',
   'cdn-lfs.huggingface.co',
@@ -39,12 +38,16 @@ self.addEventListener('fetch', ev => {
   if (!hostOk(req.url)) return;
   ev.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const hit = await cache.match(req);
-    if (hit) return hit;
-    const res = await fetch(req);
-    if (res && res.ok && (res.type === 'basic' || res.type === 'cors')) {
-      try { await cache.put(req, res.clone()); } catch (_) {}
+    try {
+      const res = await fetch(req, { cache: 'no-store' });
+      if (res && res.ok && (res.type === 'basic' || res.type === 'cors')) {
+        try { await cache.put(req, res.clone()); } catch (_) {}
+      }
+      return res;
+    } catch (_) {
+      const hit = await cache.match(req);
+      if (hit) return hit;
+      throw _;
     }
-    return res;
   })());
 });
