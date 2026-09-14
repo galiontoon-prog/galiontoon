@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260913k">
+<meta name="gs-ver" content="20260913p">
 <title>Grabadora</title>
 <style>
 :root{
@@ -664,12 +664,15 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
+<script src="WhisperEngine.js?v=20260913p"></script>
+<script src="MoonshineEngine.js?v=20260913p"></script>
+<script src="DiarizationEngine.js?v=20260913p"></script>
 <script>
 
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260913n';
+  const GS_VER = '20260913p';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -3694,10 +3697,17 @@ window.Grabadora = null;
   pintarIconos();
   pintarBadge(); pintarOnda(false); pintarLista(); pintarCues();
   loadWhisper();
+  loadMoonshine();
   loadDiarization();
   registrarSW();
   if ($('verApp')) $('verApp').textContent = GS_VER;
-  try { console.info('[Grabadora] versión', GS_VER); } catch(_){}
+  try {
+    console.info('[Grabadora] versión', GS_VER);
+    console.info('[Grabadora] motores',
+      'Whisper', !!window.WhisperEngine,
+      'Moonshine', !!window.MoonshineEngine,
+      'Diar', !!window.DiarizationEngine);
+  } catch(_){}
   arranqueProyecto();
   window.Grabadora = { iniciar, detener, insertar, estado: () => estado, transcribirToma };
   window.Subtitulos = { leerSRT, leerVTT, escribirSRT, escribirVTT };
