@@ -669,7 +669,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260913k';
+  const GS_VER = '20260913n';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -1929,15 +1929,15 @@ window.Grabadora = null;
       try { console.warn('[En vivo] no hay #liveBox o #liveCuerpo'); } catch(_){}
       return;
     }
-    const ver = liveActivo || (speechOn() && (estado===GRABANDO || estado===PAUSADO || speechCues.length || forzar));
-    box.classList.toggle('on', !!ver);
+    const ver = !!liveActivo;
+    box.classList.toggle('on', ver);
     if (ver){
       box.style.display = 'flex';
       box.style.opacity = '1';
       box.style.zIndex = '9999';
     } else {
-      box.style.display = '';
-      box.style.opacity = '';
+      box.style.display = 'none';
+      box.style.opacity = '0';
     }
     box.classList.toggle('rec', estado === GRABANDO);
     if ($('bLiveOpen')){
@@ -2022,9 +2022,21 @@ window.Grabadora = null;
     if (estado === GRABANDO) arrancarSpeech();
   }
   function cerrarLive(){
+    try { console.info('[En vivo] recuadro cerrado'); } catch(_){}
     liveActivo = false;
-    if ($('liveBox')) $('liveBox').classList.remove('on');
-    if ($('bLiveOpen')) $('bLiveOpen').classList.remove('on');
+    if ($('chkSpeech')) $('chkSpeech').checked = false;
+    if ($('avisoSpeech')) $('avisoSpeech').style.display = 'none';
+    pararSpeech();
+    const box = anclarLiveBox() || $('liveBox');
+    if (box){
+      box.classList.remove('on', 'menu-on', 'rec');
+      box.style.display = 'none';
+      box.style.opacity = '0';
+    }
+    if ($('bLiveOpen')){
+      $('bLiveOpen').classList.remove('on');
+      $('bLiveOpen').setAttribute('aria-pressed', 'false');
+    }
   }
   function limpiaLiveTxt(texto){
     let t = String(texto || '').replace(/\s+/g,' ').trim();
@@ -3364,7 +3376,25 @@ window.Grabadora = null;
     const c = $('liveCuerpo'), box = $('liveBox');
     box._min = !box._min; c.style.display = box._min ? 'none' : '';
   };
-  $('bLiveX').onclick = () => cerrarLive();
+  function onCerrarLive(ev){
+    if (ev){ try { ev.preventDefault(); ev.stopPropagation(); } catch(_){} }
+    cerrarLive();
+  }
+  if ($('bLiveX')){
+    $('bLiveX').onclick = onCerrarLive;
+    $('bLiveX').onpointerdown = ev => { ev.stopPropagation(); };
+  }
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && liveActivo){ ev.preventDefault(); cerrarLive(); }
+  });
+  document.addEventListener('pointerdown', ev => {
+    if (!liveActivo) return;
+    const box = $('liveBox');
+    if (!box || !box.classList.contains('on')) return;
+    if (ev.target && ev.target.closest && ev.target.closest('#liveBox')) return;
+    if (ev.target && ev.target.closest && ev.target.closest('#bLiveOpen')) return;
+    cerrarLive();
+  });
   function aplicarParLive(reiniciar){
     syncLiveIdiomaUI();
     speechCues.forEach(c => { c.trad = ''; traducirLiveLinea(c); });
