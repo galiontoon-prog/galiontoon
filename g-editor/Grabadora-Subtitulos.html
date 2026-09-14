@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260913p">
+<meta name="gs-ver" content="20260913q">
 <title>Grabadora</title>
 <style>
 :root{
@@ -664,15 +664,15 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
-<script src="WhisperEngine.js?v=20260913p"></script>
-<script src="MoonshineEngine.js?v=20260913p"></script>
-<script src="DiarizationEngine.js?v=20260913p"></script>
+<script src="WhisperEngine.js?v=20260913q"></script>
+<script src="MoonshineEngine.js?v=20260913q"></script>
+<script src="DiarizationEngine.js?v=20260913q"></script>
 <script>
 
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260913p';
+  const GS_VER = '20260913q';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -1650,7 +1650,7 @@ window.Grabadora = null;
     estado = GRABANDO; pintarBadge();
     $('timer').textContent = '00:00.0';
     relojVivo(); cancelAnimationFrame(raf); bucleOnda();
-    if (speechOn()){ arrancarSpeech(); pintarLive(true); }
+    if (liveActivo || speechOn()){ arrancarSpeech(); pintarLive(true); }
   }
   function soltarClon(){
     extra.forEach(s => { try{ s.getTracks().forEach(t => t.stop()); }catch(_){} }); extra = [];
@@ -1692,7 +1692,7 @@ window.Grabadora = null;
     if (estado === GRABANDO) return;
     if (ctx) t0 = ctx.currentTime - dur;
     estado = GRABANDO; relojVivo(); bucleOnda();
-    if (speechOn()){ arrancarSpeech(); pintarLive(true); }
+    if (liveActivo || speechOn()){ arrancarSpeech(); pintarLive(true); }
     pintarBadge();
   }
   function detener(){
@@ -1909,7 +1909,7 @@ window.Grabadora = null;
     try{ if (liveCap.proc) liveCap.proc.disconnect(); }catch(_){}
     try{ if (liveCap.gain) liveCap.gain.disconnect(); }catch(_){}
     try{ if (liveCap.src) liveCap.src.disconnect(); }catch(_){}
-    liveCap = { proc:null, gain:null, src:null, buf:[], cola: liveCap.cola || [], busy:false, rec:null, tok:liveCap.tok, sileroOk: liveCap.sileroOk, aw:false };
+    liveCap = { proc:null, gain:null, src:null, buf:[], cola: liveCap.cola || [], busy:false, rec:null, tok:liveCap.tok, sileroOk: liveCap.sileroOk, aw:false, pcmLog:false, lastPcm:0, ac:null };
   }
   function pararSpeech(){
     pararLiveCap();
@@ -1937,6 +1937,8 @@ window.Grabadora = null;
     if (ver){
       box.style.display = 'flex';
       box.style.opacity = '1';
+      box.style.visibility = 'visible';
+      box.style.pointerEvents = 'auto';
       box.style.zIndex = '9999';
     } else {
       box.style.display = 'none';
@@ -2020,8 +2022,11 @@ window.Grabadora = null;
         : 'El reconocimiento del navegador oye el micrófono de este equipo.';
     }
     pintarLive(true);
-    const box = $('liveBox');
-    try { console.info('[En vivo] recuadro', box ? box.className : 'AUSENTE', box && box.parentElement && box.parentElement.tagName); } catch(_){}
+    const box = anclarLiveBox() || $('liveBox');
+    try {
+      console.info('[En vivo] recuadro en DOM',
+        box ? ('parent='+(box.parentElement && box.parentElement.tagName)+' display='+getComputedStyle(box).display+' class='+box.className) : 'AUSENTE');
+    } catch(_){}
     if (estado === GRABANDO) arrancarSpeech();
   }
   function cerrarLive(){
@@ -2240,7 +2245,12 @@ window.Grabadora = null;
       }
       let r = null;
       if (usarMo){
-        try { r = await engMo.transcribir(blob); }
+        try {
+          try { console.info('[Moonshine] procesando chunk'); } catch(_){}
+          const t0m = performance.now();
+          r = await engMo.transcribir(blob);
+          try { console.info('[Moonshine] chunk procesado en', Math.round(performance.now() - t0m), 'ms'); } catch(_){}
+        }
         catch(e){
           try { console.warn('[Moonshine] ERROR transcribir, fallback Whisper', e); } catch(_){}
           liveMsg('Moonshine no disponible. Usando Whisper (más lento).');
@@ -2314,12 +2324,17 @@ window.Grabadora = null;
     finally { liveCap.busy = false; }
   }
   function encolarPcm(ch){
-    if (estado !== GRABANDO) return;
+    if (estado !== GRABANDO || !liveActivo) return;
     liveCap.buf.push(ch instanceof Float32Array ? ch : new Float32Array(ch));
+    liveCap.lastPcm = Date.now();
+    if (!liveCap.pcmLog){
+      liveCap.pcmLog = true;
+      try { console.info('[En vivo] chunk capturado', Math.round(1000 * (ch && ch.length || 0) / ((liveCap.ac && liveCap.ac.sampleRate) || 48000)), 'ms'); } catch(_){}
+    }
     const ac = liveCap.ac || ctxMix || ctx;
     const sr = (ac && ac.sampleRate) || 48000;
     let n = 0; for (let i = 0; i < liveCap.buf.length; i++) n += liveCap.buf[i].length;
-    if (n >= (sr * 1.8) && !liveCap.busy) flushLiveCap();
+    if (n >= (sr * 1.6) && !liveCap.busy) flushLiveCap();
   }
   async function arrancarLivePcm(){
     const ac = ctxMix || ctx;
@@ -2349,6 +2364,7 @@ window.Grabadora = null;
         liveCap.gain.connect(ac.destination);
         liveCap.aw = true;
         liveCap.proc.port.onmessage = ev => encolarPcm(ev.data);
+        liveCap.lastPcm = Date.now();
         return true;
       }
       if (ctxMix && gainLive){
@@ -2389,7 +2405,7 @@ window.Grabadora = null;
     speechT0 = ahoraRec();
     if (esCapturaPC()){
       if ($('livePriv')) $('livePriv').textContent = 'Preparando modelos. La escucha empieza cuando la descarga termine.';
-      const okCap = await arrancarLiveCap();
+      let okCap = await arrancarLiveCap();
       if (!okCap){
         aviso('No hay pista de audio en la captura. Comparte audio de la pestaña o pantalla.', 'err');
         return;
@@ -2401,6 +2417,10 @@ window.Grabadora = null;
       if (!okMo){
         aviso('No hay motor de transcripción listo. Los audios quedan en cola.', 'err');
         return;
+      }
+      if (!liveCap.proc){
+        try { console.warn('[En vivo] tap perdido durante la carga, reconectando'); } catch(_){}
+        okCap = await arrancarLiveCap();
       }
       try { console.info('[En vivo] motor listo, procesando chunks'); } catch(_){}
       liveMsg(moonshineListo() ? 'Moonshine listo. Oyendo el audio capturado.' : 'Modelo listo. Oyendo el audio capturado.');
@@ -3388,15 +3408,8 @@ window.Grabadora = null;
     $('bLiveX').onpointerdown = ev => { ev.stopPropagation(); };
   }
   document.addEventListener('keydown', ev => {
-    if (ev.key === 'Escape' && liveActivo){ ev.preventDefault(); cerrarLive(); }
-  });
-  document.addEventListener('pointerdown', ev => {
-    if (!liveActivo) return;
-    const box = $('liveBox');
-    if (!box || !box.classList.contains('on')) return;
-    if (ev.target && ev.target.closest && ev.target.closest('#liveBox')) return;
-    if (ev.target && ev.target.closest && ev.target.closest('#bLiveOpen')) return;
-    cerrarLive();
+    if (ev.key !== 'Escape' || !liveActivo) return;
+    if (ev.target && ev.target.closest && ev.target.closest('#liveBox')){ ev.preventDefault(); cerrarLive(); }
   });
   function aplicarParLive(reiniciar){
     syncLiveIdiomaUI();
