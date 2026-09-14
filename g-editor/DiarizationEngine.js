@@ -123,13 +123,25 @@
       s.onerror = function () { bad(new Error('No cargó ONNX Runtime')); };
       document.head.appendChild(s);
     });
-    try { global.ort.env.wasm.wasmPaths = ORT_WASM; } catch (_) {}
+    try {
+      var w = global.ort.env.wasm;
+      w.wasmPaths = ORT_WASM;
+      w.simd = true;
+      var aislado = typeof crossOriginIsolated !== 'undefined' && !!crossOriginIsolated;
+      var cores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 1;
+      w.numThreads = aislado ? Math.min(4, cores) : 1;
+      w.proxy = !!aislado;
+    } catch (_) {}
     return global.ort;
   }
 
   async function crearSesion(buf) {
     var ort = await asegurarOrt();
-    var providers = webgpu ? ['webgpu', 'wasm'] : ['wasm'];
+    var gpu = false;
+    if (webgpu && navigator.gpu) {
+      try { gpu = !!(await navigator.gpu.requestAdapter()); } catch (_) { gpu = false; }
+    }
+    var providers = gpu ? ['webgpu', 'wasm'] : ['wasm'];
     var last;
     for (var i = 0; i < providers.length; i++) {
       try {

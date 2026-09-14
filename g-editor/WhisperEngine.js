@@ -41,8 +41,9 @@
   var pendientes = Object.create(null);
   var onProgreso = null;
   var webgpu = typeof navigator !== 'undefined' && !!navigator.gpu;
-  var deviceUsado = webgpu ? 'webgpu' : 'wasm';
-  var dtypeUsado = webgpu ? 'fp16' : 'q8';
+  var webgpuOk = false;
+  var deviceUsado = 'wasm';
+  var dtypeUsado = 'q8';
   var idiomaSesion = '';
   var cargaEnCurso = null;
 
@@ -217,8 +218,48 @@
   }
 
   var sesSilero = null;
+  var sileroListo = false;
+  async function probeWebGPU() {
+    webgpuOk = false;
+    if (typeof navigator === 'undefined' || !navigator.gpu) {
+      sileroLog('INFO sin navigator.gpu, WASM');
+      return false;
+    }
+    try {
+      var ad = await navigator.gpu.requestAdapter();
+      if (!ad) {
+        sileroLog('INFO requestAdapter()=null, WASM');
+        return false;
+      }
+      webgpuOk = true;
+      var inf = ad.info || {};
+      sileroLog('INFO adapter', inf.vendor || '', inf.architecture || '', inf.isFallbackAdapter ? 'fallback' : '');
+      return true;
+    } catch (e) {
+      sileroLog('INFO probe WebGPU', e && e.message || e);
+      return false;
+    }
+  }
+  function tunarWasm(ort) {
+    if (!ort || !ort.env || !ort.env.wasm) return;
+    try {
+      var w = ort.env.wasm;
+      w.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+      w.simd = true;
+      var aislado = typeof crossOriginIsolated !== 'undefined' && !!crossOriginIsolated;
+      var cores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 1;
+      w.numThreads = aislado ? Math.min(4, cores) : 1;
+      w.proxy = !!aislado;
+      sileroLog('WASM', 'simd', !!w.simd, 'threads', w.numThreads, 'proxy', w.proxy, 'COOP/COEP', aislado);
+    } catch (e) {
+      sileroLog('INFO tunar WASM', e && e.message || e);
+    }
+  }
   async function asegurarOrt() {
-    if (global.ort) return global.ort;
+    if (global.ort) {
+      tunarWasm(global.ort);
+      return global.ort;
+    }
     await new Promise(function (ok, bad) {
       var s = document.createElement('script');
       s.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js';
@@ -226,7 +267,7 @@
       s.onerror = function () { bad(new Error('ORT')); };
       document.head.appendChild(s);
     });
-    try { global.ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/'; } catch (_) {}
+    tunarWasm(global.ort);
     return global.ort;
   }
   function sileroLog() {
@@ -264,18 +305,26 @@
       throw e;
     }
     var ort = await asegurarOrt();
-    var providers = (typeof navigator !== 'undefined' && navigator.gpu) ? ['webgpu', 'wasm'] : ['wasm'];
+    var gpu = await probeWebGPU();
+    var providers = gpu ? ['webgpu', 'wasm'] : ['wasm'];
     var lastOrt = null;
     for (var pi = 0; pi < providers.length; pi++) {
       try {
         sileroLog('sesión ONNX', providers[pi]);
         sesSilero = await ort.InferenceSession.create(buf, { executionProviders: [providers[pi]] });
         lastOrt = null;
+        sileroListo = true;
+        try { global.sileroListo = true; } catch (_) {}
         sileroLog('sesión ONNX creada OK', providers[pi], sesSilero.inputNames, sesSilero.outputNames);
+        sileroLog('marcado como listo para el pipeline');
         break;
       } catch (e) {
         lastOrt = e;
-        sileroLog('ERROR sesión', providers[pi], e && e.message || e);
+        var msg = String(e && e.message || e);
+        if (/webgpu|backend|not available/i.test(msg) && providers[pi] === 'webgpu')
+          sileroLog('INFO WebGPU no disponible, usando WASM');
+        else
+          sileroLog('ERROR sesión', providers[pi], msg);
       }
     }
     if (!sesSilero) throw lastOrt || new Error('Silero session');
@@ -286,25 +335,40 @@
     try { await asegurarSilero(); }
     catch (e) { sileroLog('ERROR init', e && e.message || e); return null; }
     var ort = global.ort;
-    var hop = 512, sr = 16000, th = 0.5;
+    var hop = 512, sr = 16000, th = 0.45;
     var probs = [];
+    var names = sesSilero.inputNames || ['input', 'state', 'sr'];
+    var outs = sesSilero.outputNames || ['output', 'stateN'];
     var state = new ort.Tensor('float32', new Float32Array(2 * 1 * 128), [2, 1, 128]);
-    var srTen = new ort.Tensor('int64', BigInt64Array.from([BigInt(sr)]), []);
+    var srTen = new ort.Tensor('int64', BigInt64Array.from([BigInt(sr)]), [1]);
+    var falloRun = null;
     for (var i = 0; i + hop <= pcm.length; i += hop) {
-      var sl = pcm.subarray(i, i + hop);
-      var feeds = {
-        input: new ort.Tensor('float32', sl, [1, sl.length]),
-        state: state,
-        sr: srTen
-      };
+      var sl = new Float32Array(hop);
+      sl.set(pcm.subarray(i, i + hop));
+      var feeds = {};
+      for (var ni = 0; ni < names.length; ni++) {
+        var nm = names[ni];
+        if (/sr/i.test(nm)) feeds[nm] = srTen;
+        else if (/state/i.test(nm)) feeds[nm] = state;
+        else feeds[nm] = new ort.Tensor('float32', sl, [1, hop]);
+      }
       try {
         var out = await sesSilero.run(feeds);
-        var p = out.output && out.output.data ? out.output.data[0] : 0;
+        var outKey = outs[0] && out[outs[0]] ? outs[0] : (out.output ? 'output' : Object.keys(out)[0]);
+        var p = out[outKey] && out[outKey].data ? out[outKey].data[0] : 0;
         probs.push({ t: i / sr, p: +p });
-        if (out.stateN) state = out.stateN;
-      } catch (_) { break; }
+        var stKey = outs.filter(function (n) { return /state/i.test(n); })[0];
+        if (stKey && out[stKey]) state = out[stKey];
+      } catch (e) {
+        falloRun = e;
+        sileroLog('ERROR inferencia', e && e.message || e);
+        break;
+      }
     }
-    if (!probs.length) return null;
+    if (!probs.length) {
+      sileroLog('sin frames', falloRun && (falloRun.message || falloRun));
+      return null;
+    }
     var segs = [], on = false, t0 = 0, last = 0;
     for (var k = 0; k < probs.length; k++) {
       var hit = probs[k].p >= th;
@@ -645,7 +709,7 @@
     estado: function () { return estado; },
     error: function () { return ultimoError; },
     liberar: liberar,
-    webgpu: function () { return webgpu; },
+    webgpu: function () { return webgpuOk; },
     device: function () { return deviceUsado; },
     dtype: function () { return dtypeUsado; },
     etiquetaModelo: function () {
@@ -656,6 +720,7 @@
     tamano: function () { return TAMANO; },
     vad: vadSilero,
     asegurarVad: asegurarSilero,
+    sileroListo: function () { return !!sileroListo && !!sesSilero; },
     hayCache: async function () { return (await hayMarcaOPFS()) || (await hayCacheHF()); }
   };
 })(typeof window !== 'undefined' ? window : self);
