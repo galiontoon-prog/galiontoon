@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260914m">
+<meta name="gs-ver" content="20260914n">
 <title>Grabadora</title>
 <style>
 :root{
@@ -1305,14 +1305,28 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     setEstado('descargando');
     cargaEnCurso = (async function () {
       try {
-        if (worker) {
-          try { worker.terminate(); } catch (_) {}
+        try {
+          arrancarWorker();
+          var info = await llamarWorker('cargar', { model: MODELO, webgpu: false });
+          if (info && info.device) {
+            deviceUsado = info.device || 'wasm';
+            dtypeUsado = info.dtype || 'q8';
+          } else {
+            deviceUsado = 'wasm';
+            dtypeUsado = 'q8';
+          }
+          webgpuOk = false;
+          setEstado('listo');
+          await marcarOPFS(true);
+          return { ok: true, via: 'worker', device: deviceUsado, dtype: dtypeUsado };
+        } catch (e) {
+          try { if (worker) worker.terminate(); } catch (_) {}
           worker = null;
+          await cargarEnHilo(opciones);
+          setEstado('listo');
+          await marcarOPFS(true);
+          return { ok: true, via: 'main', device: deviceUsado, dtype: dtypeUsado };
         }
-        await cargarEnHilo(opciones);
-        setEstado('listo');
-        await marcarOPFS(true);
-        return { ok: true, via: 'main', device: deviceUsado, dtype: dtypeUsado };
       } catch (e) {
         setEstado('error', e.message || e);
         throw e;
@@ -1362,19 +1376,24 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       logprob_threshold: opciones.logprob_threshold,
       compression_ratio_threshold: opciones.compression_ratio_threshold
     };
-    if (!pipe) throw new Error('Whisper no está listo');
-    var popts = {
-      task: 'transcribe',
-      return_timestamps: true,
-      chunk_length_s: 20,
-      stride_length_s: 2
-    };
-    if (lang) popts.language = lang;
-    popts.no_speech_threshold = opciones.no_speech_threshold != null ? opciones.no_speech_threshold : 0.5;
-    popts.logprob_threshold = opciones.logprob_threshold != null ? opciones.logprob_threshold : -0.8;
-    popts.compression_ratio_threshold = opciones.compression_ratio_threshold != null ? opciones.compression_ratio_threshold : 2.4;
-    popts.condition_on_previous_text = false;
-    r = await conOrt(function () { return pipe(audio, popts); });
+    if (worker) {
+      r = await llamarWorker('transcribir', { audio: audio, language: lang, extra: extra });
+    } else if (pipe) {
+      var popts = {
+        task: 'transcribe',
+        return_timestamps: true,
+        chunk_length_s: extra.chunk_length_s || 20,
+        stride_length_s: extra.stride_length_s || 2
+      };
+      if (lang) popts.language = lang;
+      popts.no_speech_threshold = opciones.no_speech_threshold != null ? opciones.no_speech_threshold : 0.5;
+      popts.logprob_threshold = opciones.logprob_threshold != null ? opciones.logprob_threshold : -0.8;
+      popts.compression_ratio_threshold = opciones.compression_ratio_threshold != null ? opciones.compression_ratio_threshold : 2.4;
+      popts.condition_on_previous_text = false;
+      r = await conOrt(function () { return pipe(audio, popts); });
+    } else {
+      throw new Error('Whisper no está listo');
+    }
     var ms = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
     return { segmentos: segsDeResultado(r), bruto: r, ms: ms, device: deviceUsado, dtype: dtypeUsado };
   }
@@ -2294,7 +2313,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260914m';
+  const GS_VER = '20260914n';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -3792,8 +3811,8 @@ window.Grabadora = null;
     clearTimeout(cue._tradT);
     cue._tradT = setTimeout(() => {
       if (cue._tradPend !== tok) return;
-      traducirLiveLinea(cue);
-    }, cue.cerrada ? 80 : 700);
+      Promise.resolve().then(function () { return traducirLiveLinea(cue); });
+    }, cue.cerrada ? 220 : 900);
   }
   function meterLiveTexto(texto){
     texto = limpiaLiveTxt(texto);
