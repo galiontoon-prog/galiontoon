@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260914i">
+<meta name="gs-ver" content="20260914j">
 <title>Grabadora</title>
 <style>
 :root{
@@ -1271,34 +1271,21 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   async function cargarEnHilo(opts) {
     tfMod = await import(TF_URL);
     aplicarEnv(tfMod.env);
-    var intentos = webgpu
-      ? [['webgpu','q8'],['wasm','q8']]
-      : [['wasm','q8']];
-    var last = null;
-    for (var i = 0; i < intentos.length; i++) {
-      var device = intentos[i][0], dtype = intentos[i][1];
-      try {
-        pipe = await tfMod.pipeline('automatic-speech-recognition', MODELO, {
-          device: device,
-          dtype: dtype,
-          progress_callback: function (p) {
-            if (opts && opts.onProgreso) {
-              var pct = typeof p.progress === 'number' ? p.progress : 0;
-              opts.onProgreso({ stage: p.status || '', file: p.file || '', progress: pct });
-            }
-          }
-        });
-        deviceUsado = device;
-        dtypeUsado = dtype;
-        last = null;
-        break;
-      } catch (e) {
-        last = e;
-        try { if (pipe && pipe.dispose) await pipe.dispose(); } catch (_) {}
-        pipe = null;
+    /* Una sola sesión WASM. WebGPU + Silero/Diar en la misma página
+       provoca "Session already started" en onnxruntime-web. */
+    pipe = await tfMod.pipeline('automatic-speech-recognition', MODELO, {
+      device: 'wasm',
+      dtype: 'q8',
+      progress_callback: function (p) {
+        if (opts && opts.onProgreso) {
+          var pct = typeof p.progress === 'number' ? p.progress : 0;
+          opts.onProgreso({ stage: p.status || '', file: p.file || '', progress: pct });
+        }
       }
-    }
-    if (!pipe) throw last || new Error('Whisper no cargó');
+    });
+    deviceUsado = 'wasm';
+    dtypeUsado = 'q8';
+    webgpuOk = false;
   }
 
   async function cargar(opciones) {
@@ -1318,22 +1305,9 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     setEstado('descargando');
     cargaEnCurso = (async function () {
       try {
-        var usarWorker = opciones.worker === true;
-        if (usarWorker) {
-          try {
-            arrancarWorker();
-            var info = await llamarWorker('cargar', { model: MODELO, webgpu: webgpu });
-            if (info && info.device) {
-              deviceUsado = info.device;
-              dtypeUsado = info.dtype || dtypeUsado;
-            }
-            setEstado('listo');
-            await marcarOPFS(true);
-            return { ok: true, via: 'worker', device: deviceUsado, dtype: dtypeUsado };
-          } catch (e) {
-            try { worker.terminate(); } catch (_) {}
-            worker = null;
-          }
+        if (worker) {
+          try { worker.terminate(); } catch (_) {}
+          worker = null;
         }
         await cargarEnHilo(opciones);
         setEstado('listo');
@@ -1388,33 +1362,19 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       logprob_threshold: opciones.logprob_threshold,
       compression_ratio_threshold: opciones.compression_ratio_threshold
     };
-    async function unaVez() {
-      if (worker) return llamarWorker('transcribir', { audio: audio, language: lang, extra: extra });
-      if (!pipe) throw new Error('Whisper no está listo');
-      var popts = {
-        task: 'transcribe',
-        return_timestamps: extra.timestamps,
-        chunk_length_s: extra.chunk_length_s,
-        stride_length_s: extra.stride_length_s
-      };
-      if (lang) popts.language = lang;
-      popts.no_speech_threshold = opciones.no_speech_threshold != null ? opciones.no_speech_threshold : 0.5;
-      popts.logprob_threshold = opciones.logprob_threshold != null ? opciones.logprob_threshold : -0.8;
-      popts.compression_ratio_threshold = opciones.compression_ratio_threshold != null ? opciones.compression_ratio_threshold : 2.4;
-      popts.condition_on_previous_text = false;
-      return conOrt(function () { return pipe(audio, popts); });
-    }
-    try {
-      r = await unaVez();
-    } catch (e) {
-      var msg = String(e && e.message || e);
-      if (/session already started/i.test(msg)) {
-        await new Promise(function (ok) { setTimeout(ok, 280); });
-        r = await unaVez();
-      } else {
-        throw e;
-      }
-    }
+    if (!pipe) throw new Error('Whisper no está listo');
+    var popts = {
+      task: 'transcribe',
+      return_timestamps: true,
+      chunk_length_s: 20,
+      stride_length_s: 2
+    };
+    if (lang) popts.language = lang;
+    popts.no_speech_threshold = opciones.no_speech_threshold != null ? opciones.no_speech_threshold : 0.5;
+    popts.logprob_threshold = opciones.logprob_threshold != null ? opciones.logprob_threshold : -0.8;
+    popts.compression_ratio_threshold = opciones.compression_ratio_threshold != null ? opciones.compression_ratio_threshold : 2.4;
+    popts.condition_on_previous_text = false;
+    r = await conOrt(function () { return pipe(audio, popts); });
     var ms = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
     return { segmentos: segsDeResultado(r), bruto: r, ms: ms, device: deviceUsado, dtype: dtypeUsado };
   }
@@ -2324,7 +2284,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260914i';
+  const GS_VER = '20260914j';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
