@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260914c">
+<meta name="gs-ver" content="20260914d">
 <title>Grabadora</title>
 <style>
 :root{
@@ -472,8 +472,8 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     </div>
     <div class="langWh solo-adv" style="margin-top:6px">
       <select id="selMotorLive" class="btn field" title="Motor de subtítulos en vivo (PC)">
-        <option value="moonshine" selected>Moonshine · en vivo rápido</option>
-        <option value="whisper">Whisper · fallback</option>
+        <option value="moonshine" selected>Moonshine · solo inglés</option>
+        <option value="whisper">Whisper · todos los idiomas</option>
       </select>
     </div>
     <p class="hint solo-adv" id="estMotorLive" style="text-align:left">Motor en vivo: Moonshine</p>
@@ -621,8 +621,8 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       <div class="bloque">
         <span>Transcripción PC</span>
         <select id="liveMotor" title="Motor en vivo">
-          <option value="moonshine">Moonshine · rápido</option>
-          <option value="whisper">Whisper · fallback</option>
+          <option value="moonshine">Moonshine · solo inglés</option>
+          <option value="whisper">Whisper · todos los idiomas</option>
         </select>
       </div>
       <div class="sep"></div>
@@ -717,15 +717,15 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
-<script src="WhisperEngine.js?v=20260914c"></script>
-<script src="MoonshineEngine.js?v=20260914c"></script>
-<script src="DiarizationEngine.js?v=20260914c"></script>
+<script src="WhisperEngine.js?v=20260914d"></script>
+<script src="MoonshineEngine.js?v=20260914d"></script>
+<script src="DiarizationEngine.js?v=20260914d"></script>
 <script>
 
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260914c';
+  const GS_VER = '20260914d';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -2291,7 +2291,9 @@ window.Grabadora = null;
   function pintarEstMotorLive(){
     const nom = etiquetaMotorLive();
     const listo = nom === 'Whisper' ? whisperListo() : moonshineListo();
-    const txt = 'Motor en vivo: '+nom+(listo ? ' · listo' : ' · no cargado');
+    const forzado = motorLiveSel() === 'moonshine' && !moonshineAptoIdioma();
+    const txt = 'Motor en vivo: '+nom+(listo ? ' · listo' : ' · no cargado')+
+      (forzado ? ' · Moonshine solo entiende inglés' : '');
     if ($('estMotorLive')) $('estMotorLive').textContent = txt;
     if ($('estUnif') && liveActivo){
       /* el estado unificado lo pinta pintarEstadoUnif */
@@ -2308,14 +2310,30 @@ window.Grabadora = null;
     try { console.info('[En vivo] motor activo', v); } catch(_){}
   }
   function etiquetaMotorLive(){
-    return motorLiveSel() === 'whisper' ? 'Whisper' : 'Moonshine';
+    return motorLiveEfectivo() === 'whisper' ? 'Whisper' : 'Moonshine';
+  }
+  function idiomaHablaLive(){
+    const src = (($('liveSrc')||{}).value) || '';
+    const adv = (($('selIdiomaWh')||{}).value) || '';
+    if (src && src !== 'auto') return src;
+    if (adv && adv !== 'auto') return adv;
+    return src || adv || 'es';
+  }
+  function moonshineAptoIdioma(code){
+    const c = String(code || idiomaHablaLive() || '').toLowerCase().split(/[-_]/)[0];
+    return c === 'en';
+  }
+  function motorLiveEfectivo(){
+    if (motorLiveSel() === 'whisper') return 'whisper';
+    if (!moonshineAptoIdioma()) return 'whisper';
+    return 'moonshine';
   }
   function moonshineListo(){
     const eng = window.MoonshineEngine;
     return !!(eng && eng.estado && eng.estado() === 'listo');
   }
   function liveAsrListo(){
-    if (motorLiveSel() === 'whisper') return whisperListo();
+    if (motorLiveEfectivo() === 'whisper') return whisperListo();
     return moonshineListo() || whisperListo();
   }
   async function asegurarWhisperLive(){
@@ -2389,7 +2407,13 @@ window.Grabadora = null;
     return moonshineListo();
   }
   async function asegurarMotorLive(){
-    if (motorLiveSel() === 'whisper') return asegurarWhisperLive();
+    if (motorLiveEfectivo() === 'whisper'){
+      if (motorLiveSel() === 'moonshine' && !moonshineAptoIdioma()){
+        liveMsg('Moonshine solo entiende inglés. Cargando Whisper para '+idiomaHablaLive()+'…');
+        try { console.info('[En vivo] Moonshine no sirve para', idiomaHablaLive(), '→ Whisper'); } catch(_){}
+      }
+      return asegurarWhisperLive();
+    }
     const okMo = await asegurarMoonshineLive();
     if (okMo) return true;
     liveMsg('Moonshine no disponible. Usando Whisper (más lento).');
@@ -2413,7 +2437,7 @@ window.Grabadora = null;
     }
     const engWh = window.WhisperEngine;
     const engMo = window.MoonshineEngine;
-    const usarMo = motorLiveSel() !== 'whisper' && moonshineListo() && engMo && engMo.transcribir;
+    const usarMo = motorLiveEfectivo() !== 'whisper' && moonshineListo() && engMo && engMo.transcribir;
     const engVad = engWh;
     try{
       if (engVad && engVad.asegurarVad && !(engVad.sileroListo && engVad.sileroListo())){
@@ -2441,7 +2465,7 @@ window.Grabadora = null;
         voz = await vadDeBlob(blob);
       }
       const durVoz = (voz||[]).reduce((a,s) => a + Math.max(0, (s.t1||0)-(s.t0||0)), 0);
-      if ((!voz || !voz.length || durVoz < 0.18) && usarMo === false && motorLiveSel() !== 'whisper'){
+      if ((!voz || !voz.length || durVoz < 0.18) && usarMo === false && motorLiveEfectivo() !== 'whisper'){
         try { console.info('[En vivo] chunk sin voz', durVoz); } catch(_){}
         return;
       }
@@ -2472,7 +2496,7 @@ window.Grabadora = null;
           try { console.info('[Whisper] procesando chunk'); } catch(_){}
           const t0w = performance.now();
           r = await engWh.transcribir(blob, {
-            idioma: livePar().src,
+            idioma: idiomaHablaLive() || livePar().src,
             modelo: (($('selModeloWh')||{}).value) || 'tiny',
             exigirListo: false,
             no_speech_threshold: 0.45,
@@ -3783,8 +3807,11 @@ window.Grabadora = null;
   });
   function aplicarParLive(reiniciar){
     syncLiveIdiomaUI();
+    pintarEstMotorLive();
     speechCues.forEach(c => { c.trad = ''; traducirLiveLinea(c); });
-    if (reiniciar && estado === GRABANDO && speechOn()) arrancarSpeech();
+    if (reiniciar && estado === GRABANDO && speechOn()){
+      asegurarMotorLive().then(() => arrancarSpeech()).catch(() => arrancarSpeech());
+    }
   }
   if ($('liveLang')) $('liveLang').onchange = () => {
     if ($('liveDst')) $('liveDst').value = $('liveLang').value;
