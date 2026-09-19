@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260914d">
+<meta name="gs-ver" content="20260914e">
 <title>Grabadora</title>
 <style>
 :root{
@@ -98,6 +98,10 @@ canvas{width:100%;height:56px;background:transparent;display:block}
 #estWhisper,#estMotor,#lapsoWh{display:block;text-align:left}
 .langWh{display:flex;align-items:center;gap:8px;margin:0 0 8px}
 .langWh select{flex:1}
+.tagEn{flex:0 0 auto;font:700 10px/1 ui-sans-serif,system-ui;letter-spacing:.04em;padding:4px 6px;border-radius:6px;background:#3a2a14;color:#ffcc66;border:1px solid #6a4a18;white-space:nowrap}
+.avisoEn{margin:0 0 8px;font-size:11px;color:#c8b07a;text-align:left;line-height:1.35}
+#liveBox .tagEn{font-size:9px;padding:3px 5px}
+#liveBox .cab .tagEn{margin-right:4px}
 .icoLang{flex:0 0 28px;text-align:center;font-size:16px;line-height:38px;user-select:none}
 .icoLang.wait{animation:langPulse .8s ease-in-out infinite}
 @keyframes langPulse{50%{opacity:.3}}
@@ -471,12 +475,13 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       </select>
     </div>
     <div class="langWh solo-adv" style="margin-top:6px">
-      <select id="selMotorLive" class="btn field" title="Motor de subtítulos en vivo (PC)">
-        <option value="moonshine" selected>Moonshine · solo inglés</option>
-        <option value="whisper">Whisper · todos los idiomas</option>
+      <select id="selMotorLive" class="btn field" title="Motor de subtítulos en vivo (PC). Moonshine solo inglés.">
+        <option value="moonshine" selected>Moonshine · solo inglés (EN)</option>
+        <option value="whisper">Whisper · ES, EN, FR, PT, IT, DE</option>
       </select>
+      <span class="tagEn" id="tagEnMotor" title="Moonshine solo transcribe inglés">EN</span>
     </div>
-    <p class="hint solo-adv" id="estMotorLive" style="text-align:left">Motor en vivo: Moonshine</p>
+    <p class="avisoEn solo-adv" id="estMotorLive">Moonshine solo entiende inglés. Con ES/FR/PT/IT/DE se usa Whisper.</p>
     <p class="hint solo-adv" id="estWhisper" style="text-align:left"></p>
     <p class="hint solo-adv" id="estMotor" style="text-align:left"></p>
     <label class="chk solo-adv"><input type="checkbox" id="chkTiempos"> Mostrar tiempos</label>
@@ -583,6 +588,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   <div id="liveBox">
     <div class="cab" id="liveCab">
       <span>Subtítulos en vivo</span>
+      <span class="tagEn" id="tagEnLive" hidden title="Moonshine solo transcribe inglés">EN</span>
       <span class="grow"></span>
       <span class="par" title="Hablo → se traduce a">
         <select id="liveSrc" title="Idioma que hablo">
@@ -620,10 +626,11 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       <div class="cap">Motor</div>
       <div class="bloque">
         <span>Transcripción PC</span>
-        <select id="liveMotor" title="Motor en vivo">
-          <option value="moonshine">Moonshine · solo inglés</option>
-          <option value="whisper">Whisper · todos los idiomas</option>
+        <select id="liveMotor" title="Moonshine solo inglés. Whisper para el resto.">
+          <option value="moonshine">Moonshine · solo inglés (EN)</option>
+          <option value="whisper">Whisper · ES EN FR PT IT DE</option>
         </select>
+        <span class="tagEn">solo EN</span>
       </div>
       <div class="sep"></div>
       <div class="cap">Idioma</div>
@@ -717,15 +724,15 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
-<script src="WhisperEngine.js?v=20260914d"></script>
-<script src="MoonshineEngine.js?v=20260914d"></script>
-<script src="DiarizationEngine.js?v=20260914d"></script>
+<script src="WhisperEngine.js?v=20260914e"></script>
+<script src="MoonshineEngine.js?v=20260914e"></script>
+<script src="DiarizationEngine.js?v=20260914e"></script>
 <script>
 
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260914d';
+  const GS_VER = '20260914e';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -2292,9 +2299,15 @@ window.Grabadora = null;
     const nom = etiquetaMotorLive();
     const listo = nom === 'Whisper' ? whisperListo() : moonshineListo();
     const forzado = motorLiveSel() === 'moonshine' && !moonshineAptoIdioma();
-    const txt = 'Motor en vivo: '+nom+(listo ? ' · listo' : ' · no cargado')+
-      (forzado ? ' · Moonshine solo entiende inglés' : '');
+    const txt = motorLiveSel() === 'moonshine'
+      ? (forzado
+        ? 'Moonshine es solo inglés. Con '+String(idiomaHablaLive()).toUpperCase()+' se usa Whisper.'
+        : 'Moonshine activo · solo inglés (EN).')
+      : ('Whisper activo · ES, EN, FR, PT, IT, DE'+(listo ? ' · listo' : ''));
     if ($('estMotorLive')) $('estMotorLive').textContent = txt;
+    const showEn = motorLiveSel() === 'moonshine';
+    if ($('tagEnMotor')) $('tagEnMotor').hidden = !showEn;
+    if ($('tagEnLive')) $('tagEnLive').hidden = !showEn;
     if ($('estUnif') && liveActivo){
       /* el estado unificado lo pinta pintarEstadoUnif */
     }
