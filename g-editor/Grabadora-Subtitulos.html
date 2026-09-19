@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260913v">
+<meta name="gs-ver" content="20260913y">
 <title>Grabadora</title>
 <style>
 :root{
@@ -216,10 +216,13 @@ html.modo-simple .li [data-w]{display:none}
 #liveBox.on .priv{display:block}
 #liveBox.sin-priv .priv{display:none !important}
 #liveBox .cuerpo{flex:1;min-height:72px;overflow:auto;padding:4px 12px 10px}
-#liveBox .fra{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;margin:0 0 12px}
+#liveBox .fra{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:2px;margin:0;padding:5px 0;border-bottom:1px solid #1e1e28}
+#liveBox .fra:last-child{border-bottom:0}
+#liveBox .fra.viva .orig{color:#fff}
+#liveBox .fra.cerrada .orig{color:#d0d0da}
 #liveBox .ts{grid-column:1;grid-row:1;font:11px ui-monospace,Menlo,monospace;color:var(--secu);padding-top:1px}
-#liveBox .orig{grid-column:2;color:#fff;font-size:13px}
-#liveBox .trad{grid-column:2;color:var(--secu);font-size:13px;font-style:italic}
+#liveBox .orig{grid-column:2;color:#fff;font-size:15px;line-height:1.45}
+#liveBox .trad{grid-column:2;color:var(--secu);font-size:13px;font-style:italic;line-height:1.4}
 #liveBox .pie{display:flex;gap:6px;align-items:center;padding:8px 10px 10px;border-top:1px solid var(--borde);flex:0 0 auto;position:relative}
 #liveBox .pie .ok{flex:1;height:34px;border-radius:10px;border:1px solid var(--verde);color:var(--verde);background:transparent;font-size:12px;font-weight:700}
 #liveBox .pie .ok:hover{background:#00ff8814}
@@ -477,7 +480,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     <p class="hint solo-adv" id="estMotor" style="text-align:left"></p>
     <label class="chk solo-adv"><input type="checkbox" id="chkTiempos"> Mostrar tiempos</label>
     <p class="hint solo-adv" id="lapsoWh" style="display:none;text-align:left"></p>
-    <button type="button" class="btn solo-adv" id="bGestIdiomas">Gestionar idiomas</button>
+    <button type="button" class="btn solo-adv" id="bGestIdiomas">Memoria y caché</button>
     <input type="file" id="fSrt" accept=".srt,.vtt,text/vtt" hidden>
   </section>
 
@@ -690,26 +693,29 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 </div>
 <div class="dlg" id="dlgIdiomas">
   <div class="caja">
-    <h3>Gestionar idiomas</h3>
+    <h3>Memoria y caché</h3>
+    <p id="sumCache" class="hint" style="text-align:left;margin:0 0 8px">Calculando espacio…</p>
     <p id="sumIdiomas">Whisper-tiny es multilingüe (~75 MB). Cada idioma se activa sobre esa copia local.</p>
     <div id="listaIdiomas" class="listaIdiomas"></div>
     <div class="col">
       <button type="button" class="btn" id="bWhisperDown">Descargar modelo base</button>
       <button type="button" class="btn" id="bWhisperDel">Borrar modelo y idiomas</button>
+      <button type="button" class="btn" id="bCacheLive">Liberar líneas en vivo</button>
+      <button type="button" class="btn" id="bCacheAll">Vaciar caché de modelos</button>
       <button type="button" class="link" id="bIdiomasX">Cerrar</button>
     </div>
   </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
-<script src="WhisperEngine.js?v=20260913v"></script>
-<script src="MoonshineEngine.js?v=20260913v"></script>
-<script src="DiarizationEngine.js?v=20260913v"></script>
+<script src="WhisperEngine.js?v=20260913y"></script>
+<script src="MoonshineEngine.js?v=20260913y"></script>
+<script src="DiarizationEngine.js?v=20260913y"></script>
 <script>
 
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260913v';
+  const GS_VER = '20260913y';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -1992,10 +1998,13 @@ window.Grabadora = null;
     const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
     const verT = !$('chkLiveTiempos') || $('chkLiveTiempos').checked;
     const verB = !$('chkLiveTrad') || $('chkLiveTrad').checked;
-    cuerpo.innerHTML = speechCues.map(c =>
-      '<div class="fra">'+(verT ? '<span class="ts">['+mmss(c.t0)+']</span>' : '')+'<span class="orig">'+esc(c.texto)+'</span>'+
-      (verB && c.trad ? '<span class="trad">'+esc(c.trad)+'</span>' : '')+'</div>'
-    ).join('') + (inter ? '<div class="fra">'+(verT ? '<span class="ts"></span>' : '')+'<span class="'+(verB?'trad':'orig')+'">… '+esc(inter)+'</span></div>' : '');
+    const visibles = speechCues.slice(-8);
+    cuerpo.innerHTML = visibles.map((c, i) => {
+      const viva = !c.cerrada && i === visibles.length-1 && !inter;
+      return '<div class="fra '+(c.cerrada?'cerrada':'')+(viva?' viva':'')+'">'+(verT ? '<span class="ts">['+mmss(c.t0)+']</span>' : '')+'<span class="orig">'+esc(c.texto)+'</span>'+
+      (verB && c.trad ? '<span class="trad">'+esc(c.trad)+'</span>' : '')+'</div>';
+    }).join('') + (inter ? '<div class="fra viva">'+(verT ? '<span class="ts"></span>' : '')+'<span class="'+(verB?'trad':'orig')+'">'+esc(inter)+'</span></div>' : '');
+    if (speechCues.length && $('livePriv')) $('livePriv').classList.remove('on');
     cuerpo.scrollTop = cuerpo.scrollHeight;
   }
   function livePar(){
@@ -2121,18 +2130,109 @@ window.Grabadora = null;
     const tam = (($('selModeloWh')||{}).value) || 'tiny';
     if (tam === 'tiny') aviso('El modelo tiny puede alucinar con audio difícil. Prueba el modelo Base (Avanzado → Modelo → Base).', 'info');
   }
+  function toksLive(t){
+    return String(t||'').toLowerCase().replace(/[.,;:!?¡¿"'«»()[\]]+/g,' ').replace(/\s+/g,' ').trim().split(' ').filter(Boolean);
+  }
+  function fraseCierra(t){
+    const s = String(t||'').trim();
+    if (/[.?!…]$/.test(s)) return true;
+    if (/\b(gracias|thank you|that's all|eso es todo)\.?$/i.test(s)) return true;
+    return false;
+  }
+  function solapaLive(a, b){
+    const A = toksLive(a), B = toksLive(b);
+    if (!A.length || !B.length) return 0;
+    let best = 0;
+    const max = Math.min(A.length, B.length, 10);
+    for (let n = max; n >= 1; n--){
+      if (A.slice(-n).join(' ') === B.slice(0, n).join(' ')){ best = n; break; }
+    }
+    return best;
+  }
+  function jaccardLive(a, b){
+    const A = new Set(toksLive(a)), B = new Set(toksLive(b));
+    if (!A.size || !B.size) return 0;
+    let inter = 0;
+    A.forEach(w => { if (B.has(w)) inter++; });
+    return inter / (A.size + B.size - inter);
+  }
+  function unirLive(a, b){
+    const A = String(a||'').trim(), B = String(b||'').trim();
+    if (!A) return B;
+    if (!B) return A;
+    const al = A.toLowerCase(), bl = B.toLowerCase();
+    if (al === bl) return A.length >= B.length ? A : B;
+    if (bl.startsWith(al)) return B;
+    if (al.startsWith(bl)) return A;
+    if (al.indexOf(bl) >= 0) return A;
+    if (bl.indexOf(al) >= 0) return B;
+    const n = solapaLive(A, B);
+    if (n){
+      const bw = B.split(/\s+/).filter(Boolean);
+      return (A.replace(/[,:;]\s*$/,'') + ' ' + bw.slice(n).join(' ')).replace(/\s+/g,' ').trim();
+    }
+    return (A.replace(/[,:;]\s*$/,'') + ' ' + B).replace(/\s+/g,' ').trim();
+  }
+  function debeUnirLive(prev, texto, gap){
+    if (!prev || !texto) return false;
+    if (prev.cerrada && gap > 1.1) return false;
+    const A = toksLive(prev.texto), B = toksLive(texto);
+    if (!A.length || !B.length) return false;
+    if (prev.texto.toLowerCase() === texto.toLowerCase()) return true;
+    if (texto.toLowerCase().startsWith(prev.texto.toLowerCase())) return true;
+    if (prev.texto.toLowerCase().startsWith(texto.toLowerCase())) return true;
+    if (solapaLive(prev.texto, texto) >= 1) return true;
+    if (jaccardLive(prev.texto, texto) >= 0.45) return true;
+    if (B.length <= 4 && gap < 2.8) return true;
+    if (!prev.cerrada && gap < 2.2 && prev.texto.length < 180) return true;
+    return false;
+  }
+  let liveTradTok = 0;
+  function pedirTradLive(cue){
+    const tok = ++liveTradTok;
+    cue._tradPend = tok;
+    clearTimeout(cue._tradT);
+    cue._tradT = setTimeout(() => {
+      if (cue._tradPend !== tok) return;
+      traducirLiveLinea(cue);
+    }, cue.cerrada ? 80 : 700);
+  }
   function meterLiveTexto(texto){
     texto = limpiaLiveTxt(texto);
     if (texto.length < 2) return;
     if (esEcoLive(texto)) return;
-    const prev = speechCues.length ? speechCues[speechCues.length-1].texto : '';
-    if (prev && prev.toLowerCase() === texto.toLowerCase()) return;
     avisarAlucinacion(texto);
-    const t1 = ahoraRec(), t0s = Math.max(0, speechT0);
-    if (t1 - t0s < 0.5 && texto.length < 8) return;
-    const cue = { t0:t0s, t1:Math.max(t0s+0.5, t1), texto, trad:'' };
-    speechCues.push(cue); speechT0 = Math.max(t0s+0.5, t1);
-    traducirLiveLinea(cue);
+    const t1 = ahoraRec();
+    const prev = speechCues.length ? speechCues[speechCues.length-1] : null;
+    const gap = prev ? Math.max(0, t1 - (prev.t1 || prev.t0 || 0)) : 99;
+    if (prev && debeUnirLive(prev, texto, gap)){
+      if (toksLive(prev.texto).join(' ') === toksLive(texto).join(' ')){
+        prev.t1 = Math.max(prev.t1 || 0, t1);
+        pintarLive();
+        return;
+      }
+      prev.texto = unirLive(prev.texto, texto);
+      prev.t1 = Math.max(prev.t1 || prev.t0 || 0, t1);
+      prev.cerrada = !!(fraseCierra(prev.texto) || prev.texto.length > 180);
+      speechT0 = prev.t1;
+      pedirTradLive(prev);
+      pintarLive();
+      return;
+    }
+    if (prev && !prev.cerrada && (gap >= 2.2 || fraseCierra(prev.texto) || prev.texto.length > 180)){
+      prev.cerrada = true;
+      pedirTradLive(prev);
+    }
+    const t0s = prev ? Math.max(prev.t1 || 0, t1 - Math.min(2.2, Math.max(0.4, gap))) : Math.max(0, speechT0);
+    if (t1 - t0s < 0.2 && texto.length < 5) return;
+    const cue = { t0:t0s, t1:Math.max(t0s+0.4, t1), texto, trad:'', cerrada: fraseCierra(texto) || texto.length > 180 };
+    speechCues.push(cue);
+    speechT0 = cue.t1;
+    pedirTradLive(cue);
+    if (speechCues.length > 48){
+      const keep = speechCues.slice(-36);
+      speechCues = keep;
+    }
     pintarLive();
   }
   function wavDePcm(pcm, sr){
@@ -2883,8 +2983,72 @@ window.Grabadora = null;
     const d = $('dlgIdiomas'); if (!d) return;
     d.classList.add('on');
     pintarListaIdiomas();
+    medirCache();
   }
   function cerrarIdiomas(){ const d = $('dlgIdiomas'); if (d) d.classList.remove('on'); }
+  function fmtMb(n){
+    const v = Math.max(0, Number(n)||0);
+    if (v < 1024) return v.toFixed(0)+' B';
+    if (v < 1048576) return (v/1024).toFixed(1)+' KB';
+    return (v/1048576).toFixed(1)+' MB';
+  }
+  async function medirCache(){
+    const el = $('sumCache');
+    let used = 0, quota = 0, cachesN = 0;
+    try {
+      if (navigator.storage && navigator.storage.estimate){
+        const e = await navigator.storage.estimate();
+        used = e.usage || 0; quota = e.quota || 0;
+      }
+    } catch(_){}
+    try {
+      if (window.caches){
+        const ks = await caches.keys();
+        cachesN = ks.length;
+      }
+    } catch(_){}
+    const liveN = speechCues.length;
+    const colaN = (liveCap && liveCap.cola && liveCap.cola.length) || 0;
+    if (el){
+      el.textContent = 'Usado '+fmtMb(used)+(quota?(' / '+fmtMb(quota)):'')+
+        ' · Caches '+cachesN+' · Líneas en vivo '+liveN+(colaN?(' · cola '+colaN):'');
+    }
+    return { used, quota, cachesN, liveN };
+  }
+  function liberarLiveMem(){
+    const n = speechCues.length;
+    speechCues = speechCues.slice(-8);
+    liveCap.cola = [];
+    liveCap.buf = [];
+    liveCap.recBuf = [];
+    liveEcoLog = [];
+    pintarLive(true);
+    medirCache();
+    aviso(n ? ('Memoria en vivo liberada ('+n+' líneas).') : 'No había líneas que liberar.', 'ok');
+  }
+  async function vaciarCacheModelos(){
+    if (!confirm('¿Borrar modelos locales (Whisper, Moonshine, diarización) y cachés del navegador? Tendrás que volver a descargarlos.')) return;
+    try { if (window.WhisperEngine && window.WhisperEngine.borrar) await window.WhisperEngine.borrar(); } catch(_){}
+    try { if (window.MoonshineEngine && window.MoonshineEngine.borrar) await window.MoonshineEngine.borrar(); } catch(_){}
+    try { if (window.DiarizationEngine && window.DiarizationEngine.borrar) await window.DiarizationEngine.borrar(); } catch(_){}
+    try {
+      if (window.caches){
+        const ks = await caches.keys();
+        await Promise.all(ks.map(k => caches.delete(k)));
+      }
+    } catch(_){}
+    try {
+      const root = await navigator.storage.getDirectory();
+      for (const nom of ['whisper-engine','moonshine-engine','diar-engine']){
+        try { await root.removeEntry(nom, { recursive:true }); } catch(_){}
+      }
+    } catch(_){}
+    liveCap.cola = []; liveCap.buf = [];
+    await pintarIcoHab();
+    await pintarEstadoIdioma();
+    await medirCache();
+    aviso('Caché de modelos vaciada.', 'ok');
+  }
   async function onIdiomaWh(){
     const code = idiomaWhSel();
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
@@ -3385,6 +3549,8 @@ window.Grabadora = null;
   });
   if ($('bGestIdiomas')) $('bGestIdiomas').onclick = () => abrirIdiomas();
   if ($('bIdiomasX')) $('bIdiomasX').onclick = () => cerrarIdiomas();
+  if ($('bCacheLive')) $('bCacheLive').onclick = () => liberarLiveMem();
+  if ($('bCacheAll')) $('bCacheAll').onclick = () => vaciarCacheModelos();
   if ($('selIdiomaWh')) $('selIdiomaWh').onchange = () => onIdiomaWh();
   if ($('selModeloWh')) $('selModeloWh').onchange = async () => {
     const tam = $('selModeloWh').value || 'tiny';
