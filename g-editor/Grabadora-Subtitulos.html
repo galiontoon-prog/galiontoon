@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260914s">
+<meta name="gs-ver" content="20260914u">
 <title>Grabadora</title>
 <style>
 :root{
@@ -1246,13 +1246,36 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     ].join('\n');
   }
 
+  function fallarPendientes(err) {
+    var ids = Object.keys(pendientes);
+    for (var i = 0; i < ids.length; i++) {
+      var p = pendientes[ids[i]];
+      delete pendientes[ids[i]];
+      try { p.mal(err); } catch (_) {}
+    }
+  }
+  function matarWorker() {
+    fallarPendientes(new Error('worker cerrado'));
+    try { if (worker) worker.terminate(); } catch (_) {}
+    worker = null;
+  }
   function llamarWorker(tipo, payload, transfer) {
     return new Promise(function (ok, mal) {
+      if (!worker) { mal(new Error('sin worker')); return; }
       var id = ++reqId;
-      pendientes[id] = { ok: ok, mal: mal };
+      var to = setTimeout(function () {
+        if (!pendientes[id]) return;
+        delete pendientes[id];
+        mal(new Error('timeout Whisper '+tipo));
+      }, tipo === 'cargar' ? 20000 : 25000);
+      pendientes[id] = {
+        ok: function (v) { clearTimeout(to); ok(v); },
+        mal: function (e) { clearTimeout(to); mal(e); }
+      };
       try {
         worker.postMessage({ id: id, tipo: tipo, payload: payload }, transfer || []);
       } catch (e) {
+        clearTimeout(to);
         delete pendientes[id];
         mal(e);
       }
@@ -1281,7 +1304,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       else pend.mal(new Error(d.msg || 'error Whisper'));
     };
     worker.onerror = function (e) {
-      setEstado('error', e.message || 'worker');
+      fallarPendientes(new Error(e.message || 'worker'));
     };
   }
 
@@ -1323,22 +1346,8 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     cargaEnCurso = (async function () {
       try {
         try {
-          var info = null;
-          var quiereGpu = typeof navigator !== 'undefined' && !!navigator.gpu;
-          if (quiereGpu) {
-            try {
-              arrancarWorker();
-              info = await llamarWorker('cargar', { model: MODELO, webgpu: true });
-            } catch (eGpu) {
-              try { if (worker) worker.terminate(); } catch (_) {}
-              worker = null;
-              info = null;
-            }
-          }
-          if (!info || !worker) {
-            arrancarWorker();
-            info = await llamarWorker('cargar', { model: MODELO, webgpu: false });
-          }
+          arrancarWorker();
+          var info = await llamarWorker('cargar', { model: MODELO, webgpu: false });
           if (info && info.device) {
             deviceUsado = info.device || 'wasm';
             dtypeUsado = info.dtype || 'q8';
@@ -1423,7 +1432,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       compression_ratio_threshold: opciones.compression_ratio_threshold
     };
     if (worker) {
-      r = await llamarWorker('transcribir', { audio: audio, language: lang, extra: extra }, audio && audio.buffer ? [audio.buffer] : []);
+      r = await llamarWorker('transcribir', { audio: audio, language: lang, extra: extra });
     } else if (pipe) {
       var popts = {
         task: 'transcribe',
@@ -2394,7 +2403,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260914s';
+  const GS_VER = '20260914u';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -4319,7 +4328,7 @@ window.Grabadora = null;
       for (let i = 0; i < pcm.length; i += 32){
         const a = Math.abs(pcm[i]); if (a > pico) pico = a;
       }
-      if (pico < 0.003){
+      if (pico < 0.0006){
         try { console.warn('[En vivo] chunk en silencio', pico); } catch(__){}
         return;
       }
