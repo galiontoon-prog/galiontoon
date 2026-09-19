@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260914j">
+<meta name="gs-ver" content="20260914m">
 <title>Grabadora</title>
 <style>
 :root{
@@ -1383,6 +1383,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     try { if (worker) await llamarWorker('liberar', {}); } catch (_) {}
     try { if (worker) worker.terminate(); } catch (_) {}
     worker = null;
+    try { if (pipe && pipe.dispose) await pipe.dispose(); } catch (_) {}
     pipe = null;
     tfMod = null;
     idiomaSesion = '';
@@ -1628,7 +1629,15 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     return { segmentos: segs, bruto: r, ms: ms };
   }
 
+  async function liberar() {
+    try { if (pipe && pipe.dispose) await pipe.dispose(); } catch (_) {}
+    pipe = null;
+    if (estado === 'listo') setEstado('no-descargado');
+    log('sesión liberada');
+    return { ok: true };
+  }
   async function borrar() {
+    try { await liberar(); } catch (_) {}
     pipe = null;
     tfMod = null;
     try {
@@ -1646,6 +1655,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   global.MoonshineEngine = {
     cargar: cargar,
     transcribir: transcribir,
+    liberar: liberar,
     borrar: borrar,
     estado: function () { return estado; },
     error: function () { return ultimoError; },
@@ -2284,7 +2294,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260914j';
+  const GS_VER = '20260914m';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -3899,7 +3909,19 @@ window.Grabadora = null;
   }
   function liveAsrListo(){
     if (motorLiveEfectivo() === 'whisper') return whisperListo();
-    return moonshineListo() || whisperListo();
+    return moonshineListo();
+  }
+  async function soltarAsrContrario(quedar){
+    try {
+      if (quedar === 'whisper' && window.MoonshineEngine && window.MoonshineEngine.liberar && moonshineListo()){
+        await window.MoonshineEngine.liberar();
+        try { console.info('[ASR] Moonshine liberado, queda Whisper'); } catch(_){}
+      }
+      if (quedar === 'moonshine' && window.WhisperEngine && window.WhisperEngine.liberar && whisperListo()){
+        await window.WhisperEngine.liberar();
+        try { console.info('[ASR] Whisper liberado, queda Moonshine'); } catch(_){}
+      }
+    } catch(e){ try { console.warn('[ASR] liberar', e); } catch(_){} }
   }
   async function asegurarWhisperLive(){
     try{ await loadWhisper(); }catch(e){ try { console.warn('[Whisper] load script', e); } catch(_){} }
@@ -3908,8 +3930,12 @@ window.Grabadora = null;
       try { console.warn('[Whisper] motor no está en la página'); } catch(_){}
       return false;
     }
-    if (whisperListo()) return true;
+    if (whisperListo()){
+      await soltarAsrContrario('whisper');
+      return true;
+    }
     try{
+      await soltarAsrContrario('whisper');
       liveMsg('Cargando Whisper…');
       const tam = (($('selModeloWh')||{}).value) || 'tiny';
       await eng.cargar({
@@ -3958,8 +3984,12 @@ window.Grabadora = null;
     try { await loadMoonshine(); } catch(e){ try { console.warn('[Moonshine] load', e); } catch(_){} }
     const eng = window.MoonshineEngine;
     if (!eng) return false;
-    if (moonshineListo()) return true;
+    if (moonshineListo()){
+      await soltarAsrContrario('moonshine');
+      return true;
+    }
     try {
+      await soltarAsrContrario('moonshine');
       liveMsg('Cargando Moonshine…');
       await eng.cargar({ onProgreso: p => {
         const n = Math.round(p && p.progress || 0);
@@ -4036,7 +4066,7 @@ window.Grabadora = null;
         return;
       }
       let r = null;
-      if (usarMo){
+      if (motorLiveEfectivo() !== 'whisper' && usarMo){
         try {
           try { console.info('[Moonshine] procesando chunk'); } catch(_){}
           const t0m = performance.now();
@@ -4046,10 +4076,10 @@ window.Grabadora = null;
         catch(e){
           try { console.warn('[Moonshine] ERROR transcribir, fallback Whisper', e); } catch(_){}
           liveMsg('Moonshine no disponible. Usando Whisper (más lento).');
+          r = null;
         }
       }
-      const wantWh = !r;
-      if (wantWh){
+      if (!r){
         const okWh = whisperListo() || await asegurarWhisperLive();
         if (!okWh){
           try { console.warn('[Whisper] no listo, chunk a cola'); } catch(_){}
@@ -4913,6 +4943,7 @@ window.Grabadora = null;
     try{
       if (eng){
         aviso('Transcribiendo con Whisper…', 'info');
+        await soltarAsrContrario('whisper');
         const code = idiomaWhSel();
         if (eng.estado() !== 'listo' || !(await idiomaDescargado(code))){
           downCancel = false;
@@ -5684,6 +5715,7 @@ window.Grabadora = null;
   window.addEventListener('pagehide', () => {
     pararPlayer(); soltarMic();
     try { if (window.WhisperEngine && window.WhisperEngine.liberar) window.WhisperEngine.liberar(); } catch(_){}
+    try { if (window.MoonshineEngine && window.MoonshineEngine.liberar) window.MoonshineEngine.liberar(); } catch(_){}
   });
   function pintarIconos(){}
   aplicarUI();
