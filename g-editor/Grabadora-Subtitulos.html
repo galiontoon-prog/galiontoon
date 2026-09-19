@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260914u">
+<meta name="gs-ver" content="20260914v">
 <title>Grabadora</title>
 <style>
 :root{
@@ -2403,7 +2403,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260914u';
+  const GS_VER = '20260914v';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -4328,16 +4328,17 @@ window.Grabadora = null;
       for (let i = 0; i < pcm.length; i += 32){
         const a = Math.abs(pcm[i]); if (a > pico) pico = a;
       }
-      if (pico < 0.0006){
+      if (pico < 0.0004){
         try { console.warn('[En vivo] chunk en silencio', pico); } catch(__){}
         return;
       }
+      const wav = wavDePcm(pcm, sr);
       if (!liveAsrListo()){
         liveCap.cola = liveCap.cola || [];
-        if (liveCap.cola.length < 12) liveCap.cola.push({ pcm: pcm, sr: sr });
+        if (liveCap.cola.length < 12) liveCap.cola.push(wav);
         return;
       }
-      await transcribirLivePcm(pcm, sr);
+      await transcribirLiveBlob(wav, true);
     }catch(e){
       try { console.warn('[En vivo] flush', e); } catch(__){}
       aviso('En vivo: no se pudo leer el audio capturado.', 'err');
@@ -4421,8 +4422,9 @@ window.Grabadora = null;
       if (liveCap.wd) try { clearInterval(liveCap.wd); } catch(_){}
       liveCap.wd = setInterval(() => {
         if (estado !== GRABANDO || !speechOn()) return;
-        if (liveCap.pcmLog) return;
-        if (Date.now() - (liveCap.lastPcm || 0) < 1200) return;
+        if (speechCues.length) return;
+        if (liveCap.pcmLog && Date.now() - (liveCap.lastPcm || 0) < 4000) return;
+        if (!liveCap.pcmLog && Date.now() - (liveCap.lastPcm || 0) < 1200) return;
         try { console.warn('[En vivo] tap mudo, fallback MediaRecorder'); } catch(_){}
         try{
           if (liveCap.rec && liveCap.rec.state !== 'inactive') return;
