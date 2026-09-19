@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260913q">
+<meta name="gs-ver" content="20260913u">
 <title>Grabadora</title>
 <style>
 :root{
@@ -297,13 +297,34 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 .progWh{display:none;height:8px;border-radius:99px;background:#2a2a36;overflow:hidden}
 .dlg.on .progWh,.progWh.on{display:block}
 .progWh i{display:block;height:100%;width:0;background:var(--rosa);border-radius:99px;transition:width .2s}
+
+.srcGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
+.srcBtn{height:52px;padding:6px 8px;border-radius:12px;border:1px solid var(--borde2);background:var(--ctl);color:#c8c8d4;font-size:12px;font-weight:700;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;line-height:1.15}
+.srcBtn .srcIco{font-size:18px;line-height:1;filter:grayscale(.25);pointer-events:none}
+.srcBtn .srcNom{font-size:11px;letter-spacing:.02em;pointer-events:none}
+.srcBtn.on{border-color:var(--verde);color:var(--verde);background:#00ff8814}
+.srcBtn.on .srcIco{filter:none}
+.srcBtn:hover:not(.on){background:#2a2a38;color:#fff}
+.estUnif{margin:0 0 6px;padding:10px 12px;border-radius:10px;font-size:12px;line-height:1.4;border:1px solid var(--borde);background:#16161e;color:var(--secu);min-height:40px}
+.estUnif.ok{border-color:#1f6a44;background:#0e2a1c;color:#c8f5d8}
+.estUnif.wait{border-color:#8a6a22;background:#2a2210;color:#f5e0a8}
+.estUnif.warn{border-color:#8a7a22;background:#2a2410;color:#f0e0a0}
+.estUnif.err{border-color:var(--rosa);background:#3a1524;color:#ffd0dc;cursor:pointer}
+.accBtn{width:100%;height:34px;margin-top:4px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:0 4px}
+.accBtn:hover{color:var(--txt);background:#1e1e28}
+.accBody{padding:8px 0 0;border-top:1px solid #22222e;margin-top:6px}
+.labMini{margin:0 0 6px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.syncBar{display:flex;gap:4px;flex:0 0 auto}
+.syncBar button{height:26px;padding:0 7px;border:1px solid var(--borde2);border-radius:7px;background:var(--ctl);color:#8a8a9a;font:11px/1 ui-monospace,Menlo,Consolas,monospace;font-weight:700}
+.cue.play{background:#12261c;box-shadow:inset 3px 0 0 var(--verde)}
+#togModo[hidden]{display:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <div id="app">
   <div class="top">
-    <div class="tog" id="togModo">
+    <div class="tog" id="togModo" hidden>
       <button type="button" id="bSimple" class="on" aria-pressed="true">Simple</button>
       <button type="button" id="bAvanzado" aria-pressed="false">Avanzado</button>
     </div>
@@ -319,15 +340,31 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
   <div class="aviso" id="aviso"></div>
 
-  <section class="card">
-    <p class="tit">Grabador:</p>
-    <select id="fuente" class="btn field solo-adv" title="Fuente de audio" style="margin-bottom:8px">
-      <option value="mic">Micrófono</option>
+  <section class="card" id="cardSubs">
+    <p class="tit">Subtítulos</p>
+    <p class="labMini">Fuente</p>
+    <div class="srcGrid" id="srcGrid" role="group" aria-label="Fuente de audio">
+      <button type="button" class="srcBtn on" data-src="mic"><span class="srcIco">🎤</span><span class="srcNom">Micrófono</span></button>
+      <button type="button" class="srcBtn" data-src="pestana"><span class="srcIco">📑</span><span class="srcNom">Pestaña</span></button>
+      <button type="button" class="srcBtn" data-src="pantalla"><span class="srcIco">🖥</span><span class="srcNom">Pantalla</span></button>
+      <button type="button" class="srcBtn" data-src="mezcla"><span class="srcIco">🎤+💻</span><span class="srcNom">Mic + PC</span></button>
+    </div>
+    <select id="fuente" hidden>
+      <option value="mic" selected>Micrófono</option>
       <option value="pestana">Pestaña</option>
       <option value="pantalla">Pantalla</option>
       <option value="mezcla">Mic + PC</option>
     </select>
-    <p class="hint solo-adv" id="hintFuente" style="text-align:left;margin:0 0 8px">Micrófono de este equipo.</p>
+    <p class="hint" id="hintFuente" style="text-align:left;margin:0 0 8px;display:none"></p>
+    <div class="subsMain" style="margin-bottom:10px">
+        <button type="button" class="btn btn-hero" id="bTranscribir"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20 14.5 6.2M9.2 4.8l.6 2.2 2.2.6-2.2.6-.6 2.2-.6-2.2-2.2-.6 2.2-.6zM18.2 12.2l.4 1.5 1.5.4-1.5.4-.4 1.5-.4-1.5-1.5-.4 1.5-.4z"/></svg> Generar texto</button>
+        <button type="button" class="btn btn-live" id="bLiveOpen" title="Subtítulos en vivo" aria-pressed="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3.5" width="6" height="10" rx="3"/><path d="M7 11a5 5 0 0 0 10 0M12 16v3.5M9 19.5h6"/></svg> En vivo<span class="dot" aria-hidden="true"></span></button>
+    </div>
+    <p class="labMini">Estado</p>
+    <div class="estUnif ok" id="estUnif">Todo listo. Puedes grabar.</div>
+    <button type="button" class="accBtn" id="bAccAdv" aria-expanded="false">▸ Avanzado</button>
+    <div id="cajaAdv" class="accBody" hidden>
+    <p class="labMini">Captura</p>
     <label class="chk solo-adv"><input type="checkbox" id="filtrosMic"> Filtros del mic</label>
     <div class="filaGain solo-adv" title="Ganancia de captura">
       <span>Vol.</span>
@@ -338,8 +375,12 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     <select id="selCodec" class="btn field solo-adv" title="Codec de grabación" style="margin-bottom:8px"></select>
     <p class="hint solo-adv" id="hintCodec" style="text-align:left;margin:0 0 8px"></p>
     <label class="chk solo-adv"><input type="checkbox" id="chkCuenta"> Cuenta atrás 3 s</label>
-    <label class="chk solo-adv"><input type="checkbox" id="chkSpeech"> Reconocimiento en vivo</label>
-    <p class="hint solo-adv" id="avisoSpeech" style="display:none;color:#FF4D4D;text-align:left">El audio sale del equipo (servicio del navegador).</p>
+    <label class="chk"><input type="checkbox" id="chkSpeech" hidden> Reconocimiento en vivo</label>
+    <p class="hint" id="avisoSpeech" style="display:none;color:#FF4D4D;text-align:left">El audio sale del equipo (servicio del navegador).</p>
+    </div>
+    </section>
+    <section class="card">
+    <p class="tit">Grabador</p>
     <div class="recRow">
       <button type="button" class="recBtn" id="bGrabar" title="Grabar" aria-label="Grabar">●</button>
       <canvas id="onda" width="640" height="56"></canvas>
@@ -367,12 +408,8 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </section>
 
   <section class="card">
-    <p class="tit">Subtítulos</p>
+    <p class="tit">Archivo</p>
     <div id="subsBtns">
-      <div class="subsMain">
-        <button type="button" class="btn btn-hero" id="bTranscribir"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20 14.5 6.2M9.2 4.8l.6 2.2 2.2.6-2.2.6-.6 2.2-.6-2.2-2.2-.6 2.2-.6zM18.2 12.2l.4 1.5 1.5.4-1.5.4-.4 1.5-.4-1.5-1.5-.4 1.5-.4z"/></svg> Generar texto</button>
-        <button type="button" class="btn btn-live" id="bLiveOpen" title="Subtítulos en vivo" aria-pressed="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3.5" width="6" height="10" rx="3"/><path d="M7 11a5 5 0 0 0 10 0M12 16v3.5M9 19.5h6"/></svg> En vivo<span class="dot" aria-hidden="true"></span></button>
-      </div>
       <div class="subsUtil">
         <button type="button" class="btn" id="bImpSrt"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5V6a1.5 1.5 0 0 1 1.5-1.5h5l2 2H19A1.5 1.5 0 0 1 20.5 8v10a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 18z"/></svg> Importar</button>
         <div class="expWrap" id="expWrap">
@@ -664,15 +701,15 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
-<script src="WhisperEngine.js?v=20260913q"></script>
-<script src="MoonshineEngine.js?v=20260913q"></script>
-<script src="DiarizationEngine.js?v=20260913q"></script>
+<script src="WhisperEngine.js?v=20260913u"></script>
+<script src="MoonshineEngine.js?v=20260913u"></script>
+<script src="DiarizationEngine.js?v=20260913u"></script>
 <script>
 
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260913q';
+  const GS_VER = '20260913u';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -1446,7 +1483,7 @@ window.Grabadora = null;
     h.style.display = v==='mic' ? 'none' : 'block';
     syncLiveBtn();
   }
-  function fuenteSel(){ return esAvanzado() ? ((($('fuente')||{}).value) || 'mic') : 'mic'; }
+  function fuenteSel(){ return (($('fuente')||{}).value) || 'mic'; }
   function esCapturaPC(){ const f = fuenteActiva || fuenteSel(); return f === 'pestana' || f === 'pantalla' || f === 'mezcla'; }
   function livePermitido(){ return true; }
   function syncLiveBtn(){
@@ -1611,7 +1648,7 @@ window.Grabadora = null;
     if (estado === GRABANDO || estado === PAUSADO) return;
     aviso('');
     if (!window.MediaRecorder){ aviso('Este navegador no tiene MediaRecorder.'); return; }
-    fuenteActiva = esAvanzado() ? (($('fuente')||{}).value || 'mic') : 'mic';
+    fuenteActiva = fuenteSel();
     let crudo;
     try{ crudo = await abrirFuente(fuenteActiva); }
     catch(e){
@@ -1775,15 +1812,10 @@ window.Grabadora = null;
     document.documentElement.classList.toggle('modo-avanzado', adv);
     if ($('bSimple')){ $('bSimple').classList.toggle('on', !adv); $('bSimple').setAttribute('aria-pressed', !adv ? 'true' : 'false'); }
     if ($('bAvanzado')){ $('bAvanzado').classList.toggle('on', adv); $('bAvanzado').setAttribute('aria-pressed', adv ? 'true' : 'false'); }
-    if (!adv){
-      if ($('fuente')) $('fuente').value = 'mic';
-      if ($('chkCuenta')) $('chkCuenta').checked = false;
-      if ($('chkSpeech')) $('chkSpeech').checked = false;
-      if ($('avisoSpeech')) $('avisoSpeech').style.display = 'none';
-      pararSpeech(); liveActivo = false;
-      if ($('liveBox')) $('liveBox').classList.remove('on');
-      if ($('bLiveOpen')) $('bLiveOpen').classList.remove('on');
-      hintFuente();
+    if ($('cajaAdv')) $('cajaAdv').hidden = !adv;
+    if ($('bAccAdv')){
+      $('bAccAdv').textContent = adv ? '▾ Avanzado' : '▸ Avanzado';
+      $('bAccAdv').setAttribute('aria-expanded', adv ? 'true' : 'false');
     }
   }
   function aplicarUI(){
@@ -3220,7 +3252,53 @@ window.Grabadora = null;
     auditarWCAG();
   }
 
-  $('fuente').onchange = hintFuente; hintFuente();
+  function pintarSrcBtns(){
+    const v = fuenteSel();
+    document.querySelectorAll('.srcBtn').forEach(b => b.classList.toggle('on', b.dataset.src === v));
+  }
+  function pintarEstadoUnif(){
+    const el = $('estUnif'); if (!el) return;
+    const dlg = $('dlgDown');
+    const downOn = dlg && dlg.classList.contains('on');
+    let kind = 'ok', txt = 'Todo listo. Puedes grabar.';
+    if (downOn){
+      kind = 'wait';
+      const pct = (($('downPct')||{}).textContent) || '';
+      txt = 'Descargando modelo… '+(pct||'');
+    } else if (liveActivo){
+      txt = estado === GRABANDO ? 'En vivo. Capturando audio.' : 'En vivo listo. Pulsa grabar.';
+    }
+    el.className = 'estUnif '+kind;
+    el.textContent = txt;
+    const b = $('bLiveOpen');
+    if (b) b.disabled = !!(downOn && (fuenteSel()!=='mic'));
+  }
+  async function prepararFuente(v){
+    pintarSrcBtns(); pintarEstadoUnif();
+    if (v === 'mic') return;
+    try{
+      if (typeof asegurarMoonshineLive === 'function') await asegurarMoonshineLive();
+    }catch(e){
+      const el = $('estUnif');
+      if (el){ el.className = 'estUnif err'; el.textContent = 'No se pudo descargar. Reintentar'; }
+    }
+    pintarEstadoUnif();
+  }
+  async function elegirFuente(v){
+    if ($('fuente')) $('fuente').value = v;
+    pintarSrcBtns(); hintFuente();
+    const seguir = liveActivo;
+    if (seguir && typeof pararSpeech === 'function') pararSpeech();
+    await prepararFuente(v);
+    if (seguir && estado === GRABANDO && typeof arrancarSpeech === 'function') arrancarSpeech();
+    pintarEstadoUnif();
+  }
+  $('fuente').onchange = () => elegirFuente(($('fuente')||{}).value || 'mic');
+  document.querySelectorAll('.srcBtn').forEach(b => { b.onclick = () => elegirFuente(b.dataset.src); });
+  if ($('bAccAdv')) $('bAccAdv').onclick = () => setModo(esAvanzado() ? 'simple' : 'avanzado');
+  if ($('estUnif')) $('estUnif').onclick = () => { if ($('estUnif').classList.contains('err')) prepararFuente(fuenteSel()); };
+  hintFuente(); pintarSrcBtns(); pintarEstadoUnif();
+
   $('filtrosMic').onchange = () => { micFiltros = null; };
   if ($('gananciaCap')){
     $('gananciaCap').oninput = aplicarGanancia;
