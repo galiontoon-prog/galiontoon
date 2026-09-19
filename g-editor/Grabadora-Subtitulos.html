@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260913z">
+<meta name="gs-ver" content="20260914c">
 <title>Grabadora</title>
 <style>
 :root{
@@ -476,6 +476,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
         <option value="whisper">Whisper · fallback</option>
       </select>
     </div>
+    <p class="hint solo-adv" id="estMotorLive" style="text-align:left">Motor en vivo: Moonshine</p>
     <p class="hint solo-adv" id="estWhisper" style="text-align:left"></p>
     <p class="hint solo-adv" id="estMotor" style="text-align:left"></p>
     <label class="chk solo-adv"><input type="checkbox" id="chkTiempos"> Mostrar tiempos</label>
@@ -616,6 +617,15 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
         <button type="button" data-pos="br" title="Abajo derecha" class="on"><svg viewBox="0 0 24 20" aria-hidden="true"><rect class="marco" x="2.2" y="2.2" width="19.6" height="15.6" rx="2.4"/><rect class="bar" x="2.2" y="2.2" width="19.6" height="3.2" rx="2.4"/><rect class="pip" x="13.6" y="12.2" width="6.2" height="3.4" rx=".8"/></svg></button>
       </div>
       <div class="sep"></div>
+      <div class="cap">Motor</div>
+      <div class="bloque">
+        <span>Transcripción PC</span>
+        <select id="liveMotor" title="Motor en vivo">
+          <option value="moonshine">Moonshine · rápido</option>
+          <option value="whisper">Whisper · fallback</option>
+        </select>
+      </div>
+      <div class="sep"></div>
       <div class="cap">Idioma</div>
       <div class="bloque">
         <span>Traducir a</span>
@@ -707,15 +717,15 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
-<script src="WhisperEngine.js?v=20260913z"></script>
-<script src="MoonshineEngine.js?v=20260913z"></script>
-<script src="DiarizationEngine.js?v=20260913z"></script>
+<script src="WhisperEngine.js?v=20260914c"></script>
+<script src="MoonshineEngine.js?v=20260914c"></script>
+<script src="DiarizationEngine.js?v=20260914c"></script>
 <script>
 
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260913z';
+  const GS_VER = '20260914c';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -1835,8 +1845,14 @@ window.Grabadora = null;
     document.documentElement.style.fontSize = ['13px','15px','17px'][Math.max(0, Math.min(2, p.tipo|0))] || '13px';
     if ($('bTema')) $('bTema').textContent = p.tema === 'claro' ? '☾' : '☀';
     if ($('selIdiomaWh') && p.idiomaWh) $('selIdiomaWh').value = p.idiomaWh;
+    if ($('liveIdiomaWh') && p.idiomaWh) $('liveIdiomaWh').value = p.idiomaWh;
+    if ($('liveSrc') && p.idiomaWh && p.idiomaWh !== 'auto') $('liveSrc').value = p.idiomaWh;
     if ($('selModeloWh') && p.modeloWh) $('selModeloWh').value = p.modeloWh;
-    if ($('selMotorLive') && p.motorLive) $('selMotorLive').value = p.motorLive;
+    if (p.motorLive === 'whisper' || p.motorLive === 'moonshine'){
+      motorLiveActivo = p.motorLive;
+      if ($('selMotorLive')) $('selMotorLive').value = p.motorLive;
+      if ($('liveMotor')) $('liveMotor').value = p.motorLive;
+    }
     setHabVar(p.habVar || 'off');
     pintarIcoHab();
     if ($('chkTiempos') && p.tiemposOn != null) $('chkTiempos').checked = !!p.tiemposOn;
@@ -2018,10 +2034,23 @@ window.Grabadora = null;
   function syncLiveIdiomaUI(){
     const p = livePar();
     if ($('liveLang') && $('liveLang').value !== p.dst) $('liveLang').value = p.dst;
-    if ($('liveDst') && $('liveLang') && $('liveDst').value !== $('liveLang').value) {
-      /* liveDst manda */
+    if ($('liveDst') && $('liveLang')) $('liveLang').value = $('liveDst').value;
+    const src = (($('liveSrc')||{}).value) || '';
+    if ($('liveIdiomaWh') && src && src !== 'auto') $('liveIdiomaWh').value = src;
+    if ($('selIdiomaWh') && src && src !== 'auto' && $('selIdiomaWh').value !== 'auto'){
+      if ($('selIdiomaWh').value !== src) $('selIdiomaWh').value = src;
     }
-    if ($('liveIdiomaWh') && $('liveSrc')) $('liveIdiomaWh').value = $('liveSrc').value;
+  }
+  function aplicarIdiomaAvanzado(code, opts){
+    opts = opts || {};
+    code = code || idiomaWhSel() || 'auto';
+    if ($('selIdiomaWh')) $('selIdiomaWh').value = code;
+    if ($('liveIdiomaWh')) $('liveIdiomaWh').value = code;
+    if (code && code !== 'auto' && $('liveSrc')) $('liveSrc').value = code;
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.idiomaWh = code; salvarUI(p);
+    try { console.info('[En vivo] idioma avanzado → recuadro', code); } catch(_){}
+    aplicarParLive(!!opts.reiniciar);
   }
   async function traducirLiveLinea(cue){
     if (!cue || !cue.texto) return;
@@ -2255,8 +2284,31 @@ window.Grabadora = null;
     const eng = window.WhisperEngine;
     return !!(eng && eng.estado && eng.estado() === 'listo');
   }
+  let motorLiveActivo = 'moonshine';
   function motorLiveSel(){
-    return (($('selMotorLive')||{}).value) || (leerUI().motorLive) || 'moonshine';
+    return motorLiveActivo || (($('selMotorLive')||{}).value) || (($('liveMotor')||{}).value) || (leerUI().motorLive) || 'moonshine';
+  }
+  function pintarEstMotorLive(){
+    const nom = etiquetaMotorLive();
+    const listo = nom === 'Whisper' ? whisperListo() : moonshineListo();
+    const txt = 'Motor en vivo: '+nom+(listo ? ' · listo' : ' · no cargado');
+    if ($('estMotorLive')) $('estMotorLive').textContent = txt;
+    if ($('estUnif') && liveActivo){
+      /* el estado unificado lo pinta pintarEstadoUnif */
+    }
+  }
+  function syncMotorLiveUI(v){
+    v = (v === 'whisper' || v === 'moonshine') ? v : (motorLiveSel());
+    motorLiveActivo = v;
+    if ($('selMotorLive')) $('selMotorLive').value = v;
+    if ($('liveMotor')) $('liveMotor').value = v;
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    p.motorLive = v; salvarUI(p);
+    pintarEstMotorLive();
+    try { console.info('[En vivo] motor activo', v); } catch(_){}
+  }
+  function etiquetaMotorLive(){
+    return motorLiveSel() === 'whisper' ? 'Whisper' : 'Moonshine';
   }
   function moonshineListo(){
     const eng = window.MoonshineEngine;
@@ -2614,7 +2666,7 @@ window.Grabadora = null;
         okCap = await arrancarLiveCap();
       }
       try { console.info('[En vivo] motor listo, procesando chunks'); } catch(_){}
-      liveMsg(moonshineListo() ? 'Moonshine listo. Oyendo el audio capturado.' : 'Modelo listo. Oyendo el audio capturado.');
+      liveMsg(etiquetaMotorLive()+' listo. Oyendo el audio capturado.');
       await vaciarColaLive();
       return;
     }
@@ -3079,8 +3131,7 @@ window.Grabadora = null;
   }
   async function onIdiomaWh(){
     const code = idiomaWhSel();
-    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
-    p.idiomaWh = code; salvarUI(p);
+    aplicarIdiomaAvanzado(code, { reiniciar: liveActivo && estado === GRABANDO });
     if (await idiomaDescargado(code)){ await pintarEstadoIdioma(); return; }
     try { await descargarIdioma(code); }
     catch(e){ setProg(null); setIcoLang('off'); aviso(msgDescarga(e), 'err'); }
@@ -3500,7 +3551,8 @@ window.Grabadora = null;
     pintarSrcBtns(); pintarEstadoUnif();
     if (v === 'mic') return;
     try{
-      if (typeof asegurarMoonshineLive === 'function') await asegurarMoonshineLive();
+      liveMsg('Cargando '+etiquetaMotorLive()+'…');
+      await asegurarMotorLive();
     }catch(e){
       const el = $('estUnif');
       if (el){ el.className = 'estUnif err'; el.textContent = 'No se pudo descargar. Reintentar'; }
@@ -3579,7 +3631,10 @@ window.Grabadora = null;
   if ($('bIdiomasX')) $('bIdiomasX').onclick = () => cerrarIdiomas();
   if ($('bCacheLive')) $('bCacheLive').onclick = () => liberarLiveMem();
   if ($('bCacheAll')) $('bCacheAll').onclick = () => vaciarCacheModelos();
-  if ($('selIdiomaWh')) $('selIdiomaWh').onchange = () => onIdiomaWh();
+  if ($('selIdiomaWh')){
+    $('selIdiomaWh').onchange = () => onIdiomaWh();
+    $('selIdiomaWh').addEventListener('input', () => aplicarIdiomaAvanzado($('selIdiomaWh').value, { reiniciar:false }));
+  }
   if ($('selModeloWh')) $('selModeloWh').onchange = async () => {
     const tam = $('selModeloWh').value || 'tiny';
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
@@ -3603,23 +3658,27 @@ window.Grabadora = null;
       aviso('No se pudo cargar Whisper '+tam+'.', 'err');
     }
   };
-  if ($('selMotorLive')) $('selMotorLive').onchange = async () => {
-    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
-    p.motorLive = $('selMotorLive').value || 'moonshine';
-    salvarUI(p);
-    if (p.motorLive === 'moonshine'){
-      const ok = await asegurarMoonshineLive();
-      aviso(ok ? 'Moonshine listo para En vivo.' : 'Moonshine no cargó. En vivo usará Whisper.', ok ? 'ok' : 'info');
-    } else {
-      liveMsg('Cargando Whisper…');
-      const ok = await asegurarWhisperLive();
-      aviso(ok ? 'Whisper listo para En vivo.' : 'Whisper no cargó. Revisa la red o Memoria y caché.', ok ? 'ok' : 'err');
-    }
+  async function aplicarMotorLive(v){
+    syncMotorLiveUI(v);
+    liveMsg('Cargando '+etiquetaMotorLive()+'…');
+    const ok = await asegurarMotorLive();
+    pintarEstMotorLive();
+    liveMsg(ok ? (etiquetaMotorLive()+' listo. Oyendo el audio capturado.') : (etiquetaMotorLive()+' no cargó.'));
+    aviso(ok ? (etiquetaMotorLive()+' listo para En vivo.') : (etiquetaMotorLive()+' no cargó.'), ok ? 'ok' : 'err');
     if (liveActivo && estado === GRABANDO){
       try { await arrancarSpeech(); } catch(e){ try { console.warn('[En vivo] reinicio motor', e); } catch(_){} }
     }
     pintarEstadoUnif();
-  };
+  }
+  function cablearMotor(el){
+    if (!el) return;
+    const go = () => aplicarMotorLive(el.value || 'moonshine');
+    el.onchange = go;
+    el.addEventListener('input', go);
+  }
+  cablearMotor($('selMotorLive'));
+  cablearMotor($('liveMotor'));
+  pintarEstMotorLive();
   function salvarHabVar(){
     const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
     p.habVar = habVar();
@@ -3731,7 +3790,14 @@ window.Grabadora = null;
     if ($('liveDst')) $('liveDst').value = $('liveLang').value;
     aplicarParLive(false);
   };
-  if ($('liveSrc')) $('liveSrc').onchange = () => aplicarParLive(true);
+  if ($('liveSrc')) $('liveSrc').onchange = () => {
+    const v = $('liveSrc').value;
+    if ($('liveIdiomaWh') && v !== 'auto') $('liveIdiomaWh').value = v;
+    if ($('selIdiomaWh') && v !== 'auto') $('selIdiomaWh').value = v;
+    const p = Object.assign({ tema:'oscuro', tipo:0, modo:'simple' }, leerUI());
+    if (v && v !== 'auto'){ p.idiomaWh = v; salvarUI(p); }
+    aplicarParLive(true);
+  };
   if ($('liveDst')) $('liveDst').onchange = () => {
     if ($('liveLang')) $('liveLang').value = $('liveDst').value;
     aplicarParLive(false);
