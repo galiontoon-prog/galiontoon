@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260914e">
+<meta name="gs-ver" content="20260914f">
 <title>Grabadora</title>
 <style>
 :root{
@@ -724,15 +724,1577 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   </div>
 </div>
 <audio id="player" class="oculto" preload="metadata"></audio>
-<script src="WhisperEngine.js?v=20260914e"></script>
-<script src="MoonshineEngine.js?v=20260914e"></script>
-<script src="DiarizationEngine.js?v=20260914e"></script>
+<!-- Motores embebidos: ya no hace falta subir estos .js a GitHub. whisper-sw.js SÍ va aparte. -->
+<script data-engine="WhisperEngine.js">
+/* WhisperEngine.js · motor OPCIONAL. Misma carpeta que el HTML.
+   API: cargar / transcribir / estado / borrar
+   CDN (Hugging Face via transformers.js) SOLO al pulsar Descargar modelo.
+   Cache: Cache API + marca OPFS. WebGPU → WASM. Audio no sale del equipo.
+*/
+(function (global) {
+  'use strict';
+
+  var TAMANO = 'tiny';
+  var MODELOS = {
+    tiny: 'onnx-community/whisper-tiny',
+    base: 'onnx-community/whisper-base'
+  };
+  var MODELO = MODELOS.tiny;
+  var CORS_PROXY = 'https://galiontoon-cors.galiontoon.workers.dev/?url=';
+  var RELEASE_WH = 'https://github.com/galiontoon-prog/galiontoon/releases/download/modelos-whisper-v1/';
+  var SILERO_NOM = 'silero_vad.onnx';
+  var TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2';
+  var TF_DIST = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/dist/';
+  var HF_HOST = 'https://huggingface.co/';
+
+  function aplicarEnv(env) {
+    if (!env) return;
+    env.allowLocalModels = false;
+    env.allowRemoteModels = true;
+    env.useBrowserCache = true;
+    env.remoteHost = HF_HOST;
+    env.remotePathTemplate = '{model}/resolve/{revision}/';
+    try {
+      if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
+        env.backends.onnx.wasm.wasmPaths = TF_DIST;
+      }
+    } catch (_) {}
+  }
+  var estado = 'no-descargado';
+  var ultimoError = '';
+  var pipe = null;
+  var tfMod = null;
+  var worker = null;
+  var reqId = 0;
+  var pendientes = Object.create(null);
+  var onProgreso = null;
+  var webgpu = typeof navigator !== 'undefined' && !!navigator.gpu;
+  var webgpuOk = false;
+  var deviceUsado = 'wasm';
+  var dtypeUsado = 'q8';
+  var idiomaSesion = '';
+  var cargaEnCurso = null;
+
+  function postEstado() {
+    try {
+      global.dispatchEvent(new CustomEvent('whisper-estado', { detail: estado }));
+    } catch (_) {}
+  }
+
+  function setEstado(s, err) {
+    estado = s;
+    if (err) ultimoError = String(err);
+    postEstado();
+  }
+
+  function idiomaWhisper(code) {
+    var c = String(code || 'es').toLowerCase().split(/[-_]/)[0];
+    var map = {
+      es: 'spanish', en: 'english', fr: 'french', de: 'german', it: 'italian',
+      pt: 'portuguese', ca: 'catalan', gl: 'galician', eu: 'basque',
+      ja: 'japanese', zh: 'chinese', ko: 'korean', ru: 'russian',
+      ar: 'arabic', hi: 'hindi', nl: 'dutch', pl: 'polish', tr: 'turkish'
+    };
+    return map[c] || c;
+  }
+
+  async function dirMotor(crear) {
+    if (!navigator.storage || !navigator.storage.getDirectory) return null;
+    var root = await navigator.storage.getDirectory();
+    return root.getDirectoryHandle('whisper-engine', { create: !!crear });
+  }
+
+  async function marcarOPFS(listo) {
+    try {
+      if (!listo) {
+        if (!navigator.storage || !navigator.storage.getDirectory) return;
+        var root = await navigator.storage.getDirectory();
+        try { await root.removeEntry('whisper-engine', { recursive: true }); } catch (_) {}
+        return;
+      }
+      var d = await dirMotor(true);
+      if (!d) return;
+      var f = await d.getFileHandle('ready.txt', { create: true });
+      var w = await f.createWritable();
+      await w.write(MODELO + '\n' + Date.now());
+      await w.close();
+    } catch (_) {}
+  }
+
+  async function hayMarcaOPFS() {
+    try {
+      var d = await dirMotor(false);
+      if (!d) return false;
+      await d.getFileHandle('ready.txt', { create: false });
+      return true;
+    } catch (_) { return false; }
+  }
+
+  async function leerLangs() {
+    try {
+      var d = await dirMotor(false);
+      if (!d) return {};
+      var f = await d.getFileHandle('langs.json', { create: false });
+      var file = await f.getFile();
+      var j = JSON.parse(await file.text());
+      return j && typeof j === 'object' ? j : {};
+    } catch (_) { return {}; }
+  }
+
+  async function escribirLangs(map) {
+    var d = await dirMotor(true);
+    if (!d) return;
+    var f = await d.getFileHandle('langs.json', { create: true });
+    var w = await f.createWritable();
+    await w.write(JSON.stringify(map || {}));
+    await w.close();
+  }
+
+  async function marcarIdioma(code, extra) {
+    var k = String(code || 'auto').toLowerCase();
+    var map = await leerLangs();
+    map[k] = Object.assign({ ts: Date.now(), bytes: 75 * 1024 * 1024, modelo: MODELO }, extra || {});
+    await escribirLangs(map);
+    await marcarOPFS(true);
+    return map[k];
+  }
+
+  async function idiomaListo(code) {
+    var k = String(code || 'auto').toLowerCase();
+    var map = await leerLangs();
+    if (map[k]) return true;
+    if (k === 'auto') {
+      var keys = Object.keys(map);
+      if (keys.length) return true;
+      return (await hayMarcaOPFS()) || (await hayCacheHF());
+    }
+    return false;
+  }
+
+  async function borrarIdioma(code) {
+    var k = String(code || '').toLowerCase();
+    var map = await leerLangs();
+    delete map[k];
+    await escribirLangs(map);
+    if (!Object.keys(map).length) await borrar();
+    return { ok: true, quedan: Object.keys(map) };
+  }
+
+  async function bytesCache() {
+    var total = 0;
+    try {
+      var ks = await caches.keys();
+      for (var i = 0; i < ks.length; i++) {
+        if (!/huggingface|transformers|whisper|gs-whisper/i.test(ks[i])) continue;
+        var c = await caches.open(ks[i]);
+        var reqs = await c.keys();
+        for (var j = 0; j < reqs.length; j++) {
+          try {
+            var r = await c.match(reqs[j]);
+            if (!r) continue;
+            var b = await r.blob();
+            total += b.size || 0;
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    return total;
+  }
+
+  async function hayCacheHF() {
+    try {
+      var ks = await caches.keys();
+      return ks.some(function (k) { return /huggingface|transformers|whisper/i.test(k); });
+    } catch (_) { return false; }
+  }
+
+  async function pcm16k(blob) {
+    var AC = global.AudioContext || global.webkitAudioContext;
+    var ac = new AC();
+    var raw;
+    try {
+      raw = await blob.arrayBuffer();
+    } catch (e) {
+      try { ac.close(); } catch (_) {}
+      throw e;
+    }
+    var buf;
+    try {
+      buf = await ac.decodeAudioData(raw.slice(0));
+    } finally {
+      try { ac.close(); } catch (_) {}
+    }
+    var n = buf.length, chs = buf.numberOfChannels;
+    var mono = new Float32Array(n);
+    for (var c = 0; c < chs; c++) {
+      var ch = buf.getChannelData(c);
+      for (var i = 0; i < n; i++) mono[i] += ch[i] / chs;
+    }
+    var sr = buf.sampleRate;
+    if (sr === 16000) return mono;
+    var ratio = sr / 16000;
+    var outLen = Math.max(1, Math.round(n / ratio));
+    var out = new Float32Array(outLen);
+    for (var j = 0; j < outLen; j++) {
+      var x = j * ratio;
+      var i0 = Math.floor(x);
+      var i1 = Math.min(n - 1, i0 + 1);
+      var f = x - i0;
+      out[j] = mono[i0] * (1 - f) + mono[i1] * f;
+    }
+    return out;
+  }
+
+  var sesSilero = null;
+  var sileroListo = false;
+  async function probeWebGPU() {
+    webgpuOk = false;
+    if (typeof navigator === 'undefined' || !navigator.gpu) {
+      sileroLog('INFO sin navigator.gpu, WASM');
+      return false;
+    }
+    try {
+      var ad = await navigator.gpu.requestAdapter();
+      if (!ad) {
+        sileroLog('INFO requestAdapter()=null, WASM');
+        return false;
+      }
+      webgpuOk = true;
+      var inf = ad.info || {};
+      sileroLog('INFO adapter', inf.vendor || '', inf.architecture || '', inf.isFallbackAdapter ? 'fallback' : '');
+      return true;
+    } catch (e) {
+      sileroLog('INFO probe WebGPU', e && e.message || e);
+      return false;
+    }
+  }
+  function tunarWasm(ort) {
+    if (!ort || !ort.env || !ort.env.wasm) return;
+    try {
+      var w = ort.env.wasm;
+      w.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+      w.simd = true;
+      var aislado = typeof crossOriginIsolated !== 'undefined' && !!crossOriginIsolated;
+      var cores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 1;
+      w.numThreads = aislado ? Math.min(4, cores) : 1;
+      w.proxy = !!aislado;
+      sileroLog('WASM', 'simd', !!w.simd, 'threads', w.numThreads, 'proxy', w.proxy, 'COOP/COEP', aislado);
+    } catch (e) {
+      sileroLog('INFO tunar WASM', e && e.message || e);
+    }
+  }
+  async function asegurarOrt() {
+    if (global.ort) {
+      tunarWasm(global.ort);
+      return global.ort;
+    }
+    await new Promise(function (ok, bad) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js';
+      s.onload = ok;
+      s.onerror = function () { bad(new Error('ORT')); };
+      document.head.appendChild(s);
+    });
+    tunarWasm(global.ort);
+    return global.ort;
+  }
+  function sileroLog() {
+    try { console.info.apply(console, ['[Silero]'].concat([].slice.call(arguments))); } catch (_) {}
+  }
+  async function asegurarSilero(onProg) {
+    if (sesSilero) return sesSilero;
+    var buf = null;
+    var url = CORS_PROXY + RELEASE_WH + SILERO_NOM;
+    try {
+      var root = await navigator.storage.getDirectory();
+      var d = await root.getDirectoryHandle('whisper-engine', { create: true });
+      try {
+        var fh = await d.getFileHandle(SILERO_NOM, { create: false });
+        var file = await fh.getFile();
+        if (file && file.size > 1024) {
+          buf = await file.arrayBuffer();
+          sileroLog('OPFS', file.size, 'bytes');
+        }
+      } catch (e) { sileroLog('OPFS vacío', e && e.message); }
+      if (!buf) {
+        sileroLog('intentando cargar', url);
+        if (onProg) onProg({ file: SILERO_NOM, progress: 10 });
+        var res = await fetch(url, { mode: 'cors' });
+        sileroLog('HTTP status:', res.status, 'length', res.headers.get('content-length'));
+        if (!res.ok) throw new Error('Silero HTTP ' + res.status);
+        buf = await res.arrayBuffer();
+        sileroLog('tamaño:', buf.byteLength, 'bytes');
+        if (buf.byteLength < 10000) throw new Error('archivo Silero demasiado pequeño');
+        var w = await (await d.getFileHandle(SILERO_NOM, { create: true })).createWritable();
+        await w.write(buf); await w.close();
+      }
+    } catch (e) {
+      sileroLog('ERROR descarga', e && e.message || e);
+      throw e;
+    }
+    var ort = await asegurarOrt();
+    var gpu = await probeWebGPU();
+    var providers = gpu ? ['webgpu', 'wasm'] : ['wasm'];
+    var lastOrt = null;
+    for (var pi = 0; pi < providers.length; pi++) {
+      try {
+        sileroLog('sesión ONNX', providers[pi]);
+        sesSilero = await ort.InferenceSession.create(buf, { executionProviders: [providers[pi]] });
+        lastOrt = null;
+        sileroListo = true;
+        try { global.sileroListo = true; } catch (_) {}
+        sileroLog('sesión ONNX creada OK', providers[pi], sesSilero.inputNames, sesSilero.outputNames);
+        sileroLog('marcado como listo para el pipeline');
+        break;
+      } catch (e) {
+        lastOrt = e;
+        var msg = String(e && e.message || e);
+        if (/webgpu|backend|not available/i.test(msg) && providers[pi] === 'webgpu')
+          sileroLog('INFO WebGPU no disponible, usando WASM');
+        else
+          sileroLog('ERROR sesión', providers[pi], msg);
+      }
+    }
+    if (!sesSilero) throw lastOrt || new Error('Silero session');
+    return sesSilero;
+  }
+  async function vadSilero(blob) {
+    var pcm = await pcm16k(blob);
+    try { await asegurarSilero(); }
+    catch (e) { sileroLog('ERROR init', e && e.message || e); return null; }
+    var ort = global.ort;
+    var hop = 512, sr = 16000, th = 0.45;
+    var probs = [];
+    var names = sesSilero.inputNames || ['input', 'state', 'sr'];
+    var outs = sesSilero.outputNames || ['output', 'stateN'];
+    var state = new ort.Tensor('float32', new Float32Array(2 * 1 * 128), [2, 1, 128]);
+    var srTen = new ort.Tensor('int64', BigInt64Array.from([BigInt(sr)]), [1]);
+    var falloRun = null;
+    for (var i = 0; i + hop <= pcm.length; i += hop) {
+      var sl = new Float32Array(hop);
+      sl.set(pcm.subarray(i, i + hop));
+      var feeds = {};
+      for (var ni = 0; ni < names.length; ni++) {
+        var nm = names[ni];
+        if (/sr/i.test(nm)) feeds[nm] = srTen;
+        else if (/state/i.test(nm)) feeds[nm] = state;
+        else feeds[nm] = new ort.Tensor('float32', sl, [1, hop]);
+      }
+      try {
+        var out = await sesSilero.run(feeds);
+        var outKey = outs[0] && out[outs[0]] ? outs[0] : (out.output ? 'output' : Object.keys(out)[0]);
+        var p = out[outKey] && out[outKey].data ? out[outKey].data[0] : 0;
+        probs.push({ t: i / sr, p: +p });
+        var stKey = outs.filter(function (n) { return /state/i.test(n); })[0];
+        if (stKey && out[stKey]) state = out[stKey];
+      } catch (e) {
+        falloRun = e;
+        sileroLog('ERROR inferencia', e && e.message || e);
+        break;
+      }
+    }
+    if (!probs.length) {
+      sileroLog('sin frames', falloRun && (falloRun.message || falloRun));
+      return null;
+    }
+    var segs = [], on = false, t0 = 0, last = 0;
+    for (var k = 0; k < probs.length; k++) {
+      var hit = probs[k].p >= th;
+      if (!on && hit) { on = true; t0 = Math.max(0, probs[k].t - 0.05); }
+      if (on && hit) last = probs[k].t + hop / sr;
+      if (on && !hit && probs[k].t - last > 0.2) {
+        if (last - t0 >= 0.35) segs.push({ t0: t0, t1: last, texto: '[voz]' });
+        on = false;
+      }
+    }
+    if (on && last - t0 >= 0.35) segs.push({ t0: t0, t1: last, texto: '[voz]' });
+    return segs;
+  }
+
+  function limpiarTextoWh(s) {
+    var t = String(s || '').replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    t = t.replace(/(.{2,4})\1{3,}/gi, '$1$1$1');
+    var w = t.split(' ');
+    var out = [];
+    var run = 0, last = '';
+    for (var i = 0; i < w.length; i++) {
+      var cur = w[i];
+      if (cur.toLowerCase() === last.toLowerCase()) {
+        run++;
+        if (run >= 3) continue;
+      } else { run = 1; last = cur; }
+      out.push(cur);
+    }
+    return out.join(' ').trim();
+  }
+  function segsDeResultado(r) {
+    var out = [];
+    if (!r) return out;
+    function okMeta(ch) {
+      if (!ch) return true;
+      if (ch.no_speech_prob != null && +ch.no_speech_prob > 0.8) return false;
+      if (ch.avg_logprob != null && +ch.avg_logprob < -1.5) return false;
+      if (ch.compression_ratio != null && +ch.compression_ratio > 3) return false;
+      return true;
+    }
+    if (Array.isArray(r.chunks) && r.chunks.length) {
+      r.chunks.forEach(function (ch) {
+        if (!okMeta(ch)) return;
+        var ts = ch.timestamp || [0, 0];
+        var t0 = +ts[0] || 0;
+        var t1 = ts[1] == null ? t0 + 1 : +ts[1];
+        var texto = limpiarTextoWh(ch.text || '');
+        if (texto.length < 2) return;
+        if (t1 - t0 < 0.5) return;
+        out.push({ t0: t0, t1: t1, texto: texto });
+      });
+      return out;
+    }
+    var txt = limpiarTextoWh(r.text || '');
+    if (txt.length >= 2) out.push({ t0: 0, t1: 1, texto: txt });
+    return out;
+  }
+
+  function workerSrc() {
+    return [
+      'import { pipeline, env } from "' + TF_URL + '";',
+      'env.allowLocalModels = false;',
+      'env.allowRemoteModels = true;',
+      'env.useBrowserCache = true;',
+      'env.remoteHost = "' + HF_HOST + '";',
+      'env.remotePathTemplate = "{model}/resolve/{revision}/";',
+      'try { if (env.backends && env.backends.onnx && env.backends.onnx.wasm) env.backends.onnx.wasm.wasmPaths = "' + TF_DIST + '"; } catch (e) {}',
+      'let pipe = null;',
+      'let info = { device: "wasm", dtype: "q8" };',
+      'async function inferir(audio, language) {',
+      '  const opts = { task: "transcribe", return_timestamps: true, chunk_length_s: 20, stride_length_s: 2, no_speech_threshold: 0.5, logprob_threshold: -0.8, compression_ratio_threshold: 2.4, condition_on_previous_text: false };',
+      '  if (language) opts.language = language;',
+      '  const sr = 16000, win = 30 * sr, hop = 28 * sr;',
+      '  if (!audio || audio.length <= win * 1.15) return pipe(audio, opts);',
+      '  const chunks = [];',
+      '  for (let start = 0; start < audio.length; start += hop) {',
+      '    const end = Math.min(audio.length, start + win);',
+      '    const piece = audio.slice(start, end);',
+      '    const r = await pipe(piece, opts);',
+      '    const off = start / sr;',
+      '    chunks.push({ r, off });',
+      '    if (end >= audio.length) break;',
+      '  }',
+      '  const segs = [];',
+      '  chunks.forEach(({ r, off }) => {',
+      '    const list = (r && r.chunks) || [];',
+      '    list.forEach(ch => {',
+      '      const ts = ch.timestamp || [0, 0];',
+      '      segs.push({ timestamp: [(+ts[0] || 0) + off, (ts[1] == null ? (+ts[0] || 0) + 1 : +ts[1]) + off], text: ch.text || "" });',
+      '    });',
+      '    if (!list.length && r && r.text) segs.push({ timestamp: [off, off + 1], text: r.text });',
+      '  });',
+      '  return { chunks: segs, text: segs.map(s => s.text).join(" ") };',
+      '}',
+      'self.onmessage = async (ev) => {',
+      '  const { id, tipo, payload } = ev.data || {};',
+      '  try {',
+      '    if (tipo === "cargar") {',
+      '      if (pipe) { self.postMessage({ id, tipo: "ok", info }); return; }',
+      '      let device = payload.webgpu ? "webgpu" : "wasm";',
+      '      let dtype = payload.webgpu ? "fp16" : "q8";',
+      '      try {',
+      '        pipe = await pipeline("automatic-speech-recognition", payload.model, {',
+      '          device, dtype,',
+      '          progress_callback: (p) => self.postMessage({ id, tipo: "progreso", p })',
+      '        });',
+      '      } catch (e) {',
+      '        if (device !== "webgpu") throw e;',
+      '        device = "wasm"; dtype = "q8";',
+      '        pipe = await pipeline("automatic-speech-recognition", payload.model, {',
+      '          device, dtype,',
+      '          progress_callback: (p) => self.postMessage({ id, tipo: "progreso", p })',
+      '        });',
+      '      }',
+      '      info = { device, dtype };',
+      '      self.postMessage({ id, tipo: "ok", info });',
+      '    } else if (tipo === "transcribir") {',
+      '      const r = await inferir(payload.audio, payload.language);',
+      '      self.postMessage({ id, tipo: "ok", result: r });',
+      '    } else if (tipo === "liberar") {',
+      '      pipe = null;',
+      '      self.postMessage({ id, tipo: "ok" });',
+      '    } else {',
+      '      self.postMessage({ id, tipo: "error", msg: "tipo desconocido" });',
+      '    }',
+      '  } catch (e) {',
+      '    self.postMessage({ id, tipo: "error", msg: String(e && e.message || e) });',
+      '  }',
+      '};'
+    ].join('\n');
+  }
+
+  function llamarWorker(tipo, payload, transfer) {
+    return new Promise(function (ok, mal) {
+      var id = ++reqId;
+      pendientes[id] = { ok: ok, mal: mal };
+      try {
+        worker.postMessage({ id: id, tipo: tipo, payload: payload }, transfer || []);
+      } catch (e) {
+        delete pendientes[id];
+        mal(e);
+      }
+    });
+  }
+
+  function arrancarWorker() {
+    if (worker) return;
+    var blob = new Blob([workerSrc()], { type: 'text/javascript' });
+    var url = URL.createObjectURL(blob);
+    worker = new Worker(url, { type: 'module' });
+    worker.onmessage = function (ev) {
+      var d = ev.data || {};
+      if (d.tipo === 'progreso') {
+        if (typeof onProgreso === 'function') {
+          var p = d.p || {};
+          var pct = typeof p.progress === 'number' ? p.progress : (p.status === 'done' ? 100 : 0);
+          onProgreso({ stage: p.status || '', file: p.file || '', progress: pct });
+        }
+        return;
+      }
+      var pend = pendientes[d.id];
+      if (!pend) return;
+      delete pendientes[d.id];
+      if (d.tipo === 'ok') pend.ok(d.result != null ? d.result : d.info || true);
+      else pend.mal(new Error(d.msg || 'error Whisper'));
+    };
+    worker.onerror = function (e) {
+      setEstado('error', e.message || 'worker');
+    };
+  }
+
+  async function cargarEnHilo(opts) {
+    tfMod = await import(TF_URL);
+    aplicarEnv(tfMod.env);
+    var device = webgpu ? 'webgpu' : 'wasm';
+    try {
+      pipe = await tfMod.pipeline('automatic-speech-recognition', MODELO, {
+        device: device,
+        dtype: webgpu ? 'fp16' : 'q8',
+        progress_callback: function (p) {
+          if (opts && opts.onProgreso) {
+            var pct = typeof p.progress === 'number' ? p.progress : 0;
+            opts.onProgreso({ stage: p.status || '', file: p.file || '', progress: pct });
+          }
+        }
+      });
+    } catch (e) {
+      if (device === 'webgpu') {
+        deviceUsado = 'wasm';
+        dtypeUsado = 'q8';
+        pipe = await tfMod.pipeline('automatic-speech-recognition', MODELO, {
+          device: 'wasm',
+          dtype: 'q8',
+          progress_callback: function (p) {
+            if (opts && opts.onProgreso) {
+              opts.onProgreso({ stage: p.status || '', file: p.file || '', progress: p.progress || 0 });
+            }
+          }
+        });
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  async function cargar(opciones) {
+    opciones = opciones || {};
+    onProgreso = opciones.onProgreso || opciones.onProgress || null;
+    var want = String(opciones.modelo || TAMANO || 'tiny').toLowerCase();
+    if (want !== 'base') want = 'tiny';
+    if (want !== TAMANO || MODELO !== MODELOS[want]) {
+      try { await liberar(); } catch (_) {}
+      TAMANO = want;
+      MODELO = MODELOS[want];
+    }
+    if (estado === 'listo' && (pipe || worker)) {
+      return { ok: true, cache: true, device: deviceUsado, dtype: dtypeUsado, modelo: TAMANO };
+    }
+    if (cargaEnCurso) return cargaEnCurso;
+    setEstado('descargando');
+    cargaEnCurso = (async function () {
+      try {
+        var usarWorker = opciones.worker !== false;
+        if (usarWorker) {
+          try {
+            arrancarWorker();
+            var info = await llamarWorker('cargar', { model: MODELO, webgpu: webgpu });
+            if (info && info.device) {
+              deviceUsado = info.device;
+              dtypeUsado = info.dtype || dtypeUsado;
+            }
+            setEstado('listo');
+            await marcarOPFS(true);
+            return { ok: true, via: 'worker', device: deviceUsado, dtype: dtypeUsado };
+          } catch (e) {
+            try { worker.terminate(); } catch (_) {}
+            worker = null;
+          }
+        }
+        await cargarEnHilo(opciones);
+        deviceUsado = webgpu && pipe ? deviceUsado : 'wasm';
+        dtypeUsado = deviceUsado === 'webgpu' ? 'fp16' : 'q8';
+        setEstado('listo');
+        await marcarOPFS(true);
+        return { ok: true, via: 'main', device: deviceUsado, dtype: dtypeUsado };
+      } catch (e) {
+        setEstado('error', e.message || e);
+        throw e;
+      } finally {
+        cargaEnCurso = null;
+      }
+    })();
+    return cargaEnCurso;
+  }
+
+  async function transcribir(blob, opciones) {
+    opciones = opciones || {};
+    var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (estado !== 'listo') {
+      if (opciones.exigirListo) throw new Error('Modelo Whisper no listo');
+      await cargar({ onProgreso: onProgreso, modelo: opciones.modelo });
+    }
+    if (!(blob instanceof Blob)) throw new Error('transcribir espera un Blob de audio');
+    var audio = await pcm16k(blob);
+    var rawLang = String(opciones.idioma || opciones.language || '').toLowerCase();
+    var lang = (!rawLang || rawLang === 'auto') ? null : idiomaWhisper(rawLang);
+    if (idiomaSesion && lang && idiomaSesion !== lang) idiomaSesion = lang;
+    else idiomaSesion = lang || idiomaSesion || '';
+    var r;
+    if (worker) {
+      r = await llamarWorker('transcribir', { audio: audio, language: lang });
+    } else if (pipe) {
+      var popts = {
+        task: 'transcribe',
+        return_timestamps: true,
+        chunk_length_s: opciones.chunk_length_s || 20,
+        stride_length_s: opciones.stride_length_s || 2
+      };
+      if (lang) popts.language = lang;
+      popts.no_speech_threshold = opciones.no_speech_threshold != null ? opciones.no_speech_threshold : 0.5;
+      popts.logprob_threshold = opciones.logprob_threshold != null ? opciones.logprob_threshold : -0.8;
+      popts.compression_ratio_threshold = opciones.compression_ratio_threshold != null ? opciones.compression_ratio_threshold : 2.4;
+      popts.condition_on_previous_text = false;
+      r = await pipe(audio, popts);
+    } else {
+      throw new Error('Whisper no está listo');
+    }
+    var ms = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
+    return { segmentos: segsDeResultado(r), bruto: r, ms: ms, device: deviceUsado, dtype: dtypeUsado };
+  }
+
+  async function liberar() {
+    try { if (worker) await llamarWorker('liberar', {}); } catch (_) {}
+    try { if (worker) worker.terminate(); } catch (_) {}
+    worker = null;
+    pipe = null;
+    tfMod = null;
+    idiomaSesion = '';
+    if (estado === 'listo') setEstado('no-descargado');
+    return { ok: true };
+  }
+
+  async function borrar() {
+    try { if (worker) worker.terminate(); } catch (_) {}
+    worker = null;
+    pipe = null;
+    tfMod = null;
+    try {
+      var ks = await caches.keys();
+      for (var i = 0; i < ks.length; i++) {
+        if (/huggingface|transformers|whisper/i.test(ks[i])) await caches.delete(ks[i]);
+      }
+    } catch (_) {}
+    await marcarOPFS(false);
+    setEstado('no-descargado');
+    return { ok: true };
+  }
+
+  (async function probe() {
+    try {
+      if (await hayMarcaOPFS() || await hayCacheHF()) {
+        /* Caché en disco, todavía no en memoria. */
+        setEstado('no-descargado');
+      }
+    } catch (_) {}
+  })();
+
+  global.WhisperEngine = {
+    cargar: cargar,
+    transcribir: transcribir,
+    borrar: borrar,
+    marcarIdioma: marcarIdioma,
+    idiomaListo: idiomaListo,
+    borrarIdioma: borrarIdioma,
+    listarIdiomas: leerLangs,
+    bytesCache: bytesCache,
+    estado: function () { return estado; },
+    error: function () { return ultimoError; },
+    liberar: liberar,
+    webgpu: function () { return webgpuOk; },
+    device: function () { return deviceUsado; },
+    dtype: function () { return dtypeUsado; },
+    etiquetaModelo: function () {
+      var q = dtypeUsado === 'q8' ? 'int8' : (dtypeUsado || 'fp32');
+      return TAMANO + '-' + q;
+    },
+    modelo: function () { return MODELO; },
+    tamano: function () { return TAMANO; },
+    vad: vadSilero,
+    asegurarVad: asegurarSilero,
+    sileroListo: function () { return !!sileroListo && !!sesSilero; },
+    hayCache: async function () { return (await hayMarcaOPFS()) || (await hayCacheHF()); }
+  };
+})(typeof window !== 'undefined' ? window : self);
+
+</script>
+<script data-engine="MoonshineEngine.js">
+/* MoonshineEngine.js · ASR en vivo (PC). Audio 100% local.
+   API: cargar / transcribir / estado / borrar
+   Modelo: onnx-community/moonshine-tiny-ONNX vía transformers.js
+*/
+(function (global) {
+  'use strict';
+
+  var MODELO = 'onnx-community/moonshine-tiny-ONNX';
+  var TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2';
+  var TF_DIST = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/dist/';
+  var HF_HOST = 'https://huggingface.co/';
+
+  var estado = 'no-descargado';
+  var ultimoError = '';
+  var pipe = null;
+  var tfMod = null;
+  var onProgreso = null;
+  var cargaEnCurso = null;
+  var webgpu = typeof navigator !== 'undefined' && !!navigator.gpu;
+  var webgpuOk = false;
+
+  function log() {
+    try { console.info.apply(console, ['[Moonshine]'].concat([].slice.call(arguments))); } catch (_) {}
+  }
+
+  function setEstado(s, err) {
+    estado = s;
+    if (err) ultimoError = String(err);
+    try { global.dispatchEvent(new CustomEvent('moonshine-estado', { detail: estado })); } catch (_) {}
+  }
+
+  function aplicarEnv(env) {
+    if (!env) return;
+    env.allowLocalModels = false;
+    env.allowRemoteModels = true;
+    env.useBrowserCache = true;
+    env.remoteHost = HF_HOST;
+    env.remotePathTemplate = '{model}/resolve/{revision}/';
+    try {
+      if (env.backends && env.backends.onnx && env.backends.onnx.wasm)
+        env.backends.onnx.wasm.wasmPaths = TF_DIST;
+        var aislado = typeof crossOriginIsolated !== 'undefined' && !!crossOriginIsolated;
+        var cores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 1;
+        env.backends.onnx.wasm.numThreads = aislado ? Math.min(4, cores) : 1;
+        env.backends.onnx.wasm.simd = true;
+        log('WASM threads', env.backends.onnx.wasm.numThreads, 'COOP/COEP', aislado);
+    } catch (e) { log('env wasmPaths', e && e.message); }
+  }
+
+  async function dirMotor(crear) {
+    if (!navigator.storage || !navigator.storage.getDirectory) return null;
+    var root = await navigator.storage.getDirectory();
+    return root.getDirectoryHandle('moonshine-engine', { create: !!crear });
+  }
+
+  async function marcarOPFS(listo) {
+    try {
+      if (!listo) {
+        var root = await navigator.storage.getDirectory();
+        try { await root.removeEntry('moonshine-engine', { recursive: true }); } catch (_) {}
+        return;
+      }
+      var d = await dirMotor(true);
+      if (!d) return;
+      var f = await d.getFileHandle('ready.txt', { create: true });
+      var w = await f.createWritable();
+      await w.write(MODELO + '\n' + Date.now());
+      await w.close();
+    } catch (e) { log('OPFS', e && e.message); }
+  }
+
+  async function pcm16k(blob) {
+    var AC = global.AudioContext || global.webkitAudioContext;
+    var ac = new AC();
+    var raw = await blob.arrayBuffer();
+    var buf;
+    try { buf = await ac.decodeAudioData(raw.slice(0)); }
+    finally { try { ac.close(); } catch (_) {} }
+    var n = buf.length, chs = buf.numberOfChannels;
+    var mono = new Float32Array(n);
+    for (var c = 0; c < chs; c++) {
+      var ch = buf.getChannelData(c);
+      for (var i = 0; i < n; i++) mono[i] += ch[i] / chs;
+    }
+    var sr = buf.sampleRate;
+    if (sr === 16000) return { pcm: mono, dur: n / sr };
+    var ratio = sr / 16000;
+    var outLen = Math.max(1, Math.round(n / ratio));
+    var out = new Float32Array(outLen);
+    for (var j = 0; j < outLen; j++) {
+      var x = j * ratio;
+      var i0 = Math.floor(x);
+      var i1 = Math.min(n - 1, i0 + 1);
+      var f = x - i0;
+      out[j] = mono[i0] * (1 - f) + mono[i1] * f;
+    }
+    return { pcm: out, dur: outLen / 16000 };
+  }
+
+  async function cargar(opciones) {
+    opciones = opciones || {};
+    onProgreso = opciones.onProgreso || opciones.onProgress || null;
+    if (estado === 'listo' && pipe) return { ok: true, cache: true };
+    if (cargaEnCurso) return cargaEnCurso;
+    setEstado('descargando');
+    cargaEnCurso = (async function () {
+      try {
+        log('cargando', MODELO);
+        tfMod = await import(TF_URL);
+        aplicarEnv(tfMod.env);
+        webgpuOk = false;
+        if (webgpu && navigator.gpu) {
+          try {
+            var ad = await navigator.gpu.requestAdapter();
+            webgpuOk = !!ad;
+            log('INFO adapter', ad ? 'OK' : 'null');
+          } catch (e) { log('INFO probe WebGPU', e && e.message); }
+        }
+        var device = webgpuOk ? 'webgpu' : 'wasm';
+        var dtype = webgpuOk ? 'fp16' : 'q4';
+        try {
+          pipe = await tfMod.pipeline('automatic-speech-recognition', MODELO, {
+            device: device,
+            dtype: dtype,
+            progress_callback: function (p) {
+              if (onProgreso) onProgreso({
+                stage: p.status || '',
+                file: p.file || '',
+                progress: typeof p.progress === 'number' ? p.progress : 0
+              });
+            }
+          });
+        } catch (e) {
+          log('INFO WebGPU/dtype falló, WASM q8', e && e.message);
+          pipe = await tfMod.pipeline('automatic-speech-recognition', MODELO, {
+            device: 'wasm',
+            dtype: 'q8',
+            progress_callback: function (p) {
+              if (onProgreso) onProgreso({
+                stage: p.status || '',
+                file: p.file || '',
+                progress: typeof p.progress === 'number' ? p.progress : 0
+              });
+            }
+          });
+        }
+        setEstado('listo');
+        await marcarOPFS(true);
+        log('modelo cargado');
+        return { ok: true };
+      } catch (e) {
+        setEstado('error', e && e.message || e);
+        log('ERROR carga', e && e.message || e);
+        throw e;
+      } finally {
+        cargaEnCurso = null;
+      }
+    })();
+    return cargaEnCurso;
+  }
+
+  async function transcribir(blob) {
+    if (estado !== 'listo') await cargar({ onProgreso: onProgreso });
+    if (!(blob instanceof Blob)) throw new Error('transcribir espera un Blob');
+    var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    var dec = await pcm16k(blob);
+    var r = await pipe(dec.pcm);
+    var ms = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
+    log('chunk procesado en', Math.round(ms), 'ms');
+    var segs = [];
+    if (r && Array.isArray(r.chunks) && r.chunks.length) {
+      r.chunks.forEach(function (ch) {
+        var ts = ch.timestamp || [0, dec.dur];
+        var texto = String(ch.text || '').trim();
+        if (texto) segs.push({ t0: +ts[0] || 0, t1: ts[1] == null ? dec.dur : +ts[1], texto: texto });
+      });
+    } else {
+      var txt = String((r && r.text) || '').trim();
+      if (txt) segs.push({ t0: 0, t1: dec.dur || 1, texto: txt });
+    }
+    return { segmentos: segs, bruto: r, ms: ms };
+  }
+
+  async function borrar() {
+    pipe = null;
+    tfMod = null;
+    try {
+      var ks = await caches.keys();
+      for (var i = 0; i < ks.length; i++) {
+        if (/moonshine|huggingface|transformers/i.test(ks[i])) await caches.delete(ks[i]);
+      }
+    } catch (e) { log('ERROR borrar cache', e && e.message); }
+    await marcarOPFS(false);
+    setEstado('no-descargado');
+    log('modelo borrado');
+    return { ok: true };
+  }
+
+  global.MoonshineEngine = {
+    cargar: cargar,
+    transcribir: transcribir,
+    borrar: borrar,
+    estado: function () { return estado; },
+    error: function () { return ultimoError; },
+    modelo: function () { return MODELO; }
+  };
+})(typeof window !== 'undefined' ? window : self);
+
+</script>
+<script data-engine="DiarizationEngine.js">
+/* DiarizationEngine.js · motor OPCIONAL. Misma carpeta que el HTML.
+   API: cargar / diarizar / fusionar / estado / borrar / hayCache
+
+   Profesional (sin Hugging Face, sin token):
+     fp16 (~28 MB) o fp32 (~31 MB)
+     GitHub Releases vía Cloudflare Worker (CORS).
+
+   Ligero: timbre local si falta red, ONNX o archivos.
+*/
+(function (global) {
+  'use strict';
+
+  var CORS_PROXY = 'https://galiontoon-cors.galiontoon.workers.dev/?url=';
+  var RELEASE_BASE = 'https://github.com/galiontoon-prog/galiontoon/releases/download/modelos-diarizacion-v1/';
+  var VARIANTES = {
+    fp16: { id: 'fp16', nom: 'Rápido', mb: 28, seg: 'segmentacion-fp16.onnx', emb: 'embeddings.onnx' },
+    fp32: { id: 'fp32', nom: 'Máxima', mb: 31, seg: 'segmentacion-fp32.onnx', emb: 'embeddings.onnx' }
+  };
+  var EXTRA = ['config-segmentacion.json', 'preprocessor-segmentacion.json', 'config-embeddings.yaml'];
+  var ORT_SRC = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.min.js';
+  var ORT_WASM = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/';
+
+  var estado = 'no-descargado';
+  var ultimoError = '';
+  var onProgreso = null;
+  var cargaEnCurso = null;
+  var sesSeg = null;
+  var sesEmb = null;
+  var sesiones = { fp16: { seg: null, emb: null }, fp32: { seg: null, emb: null } };
+  var activa = 'fp16';
+  var webgpu = typeof navigator !== 'undefined' && !!navigator.gpu;
+  function pack(v) { return VARIANTES[v] || VARIANTES.fp16; }
+
+  function serverBase() { return RELEASE_BASE; }
+  function urlModelo(nom) {
+    return CORS_PROXY + RELEASE_BASE + nom;
+  }
+
+  function postEstado() {
+    try { global.dispatchEvent(new CustomEvent('diar-estado', { detail: estado })); } catch (_) {}
+  }
+  function setEstado(s, err) {
+    estado = s;
+    if (err) ultimoError = String(err);
+    postEstado();
+  }
+
+  async function dirMotor(crear) {
+    if (!navigator.storage || !navigator.storage.getDirectory) return null;
+    var root = await navigator.storage.getDirectory();
+    return root.getDirectoryHandle('diar-engine', { create: !!crear });
+  }
+
+  async function leerOPFS(nom) {
+    try {
+      var d = await dirMotor(false);
+      if (!d) return null;
+      var f = await d.getFileHandle(nom, { create: false });
+      var file = await f.getFile();
+      if (!file || file.size < 1024) return null;
+      return await file.arrayBuffer();
+    } catch (_) { return null; }
+  }
+
+  async function escribirOPFS(nom, buf) {
+    var d = await dirMotor(true);
+    if (!d) return false;
+    var f = await d.getFileHandle(nom, { create: true });
+    var w = await f.createWritable();
+    await w.write(buf);
+    await w.close();
+    return true;
+  }
+
+  async function hayCache(v) {
+    var p = pack(v || activa);
+    var a = await leerOPFS(p.seg);
+    var b = await leerOPFS(p.emb);
+    return !!(a && b);
+  }
+  async function borrarArchivo(nom) {
+    try {
+      var d = await dirMotor(false);
+      if (!d) return;
+      await d.removeEntry(nom);
+    } catch (_) {}
+  }
+
+  async function bajarConProgreso(url, pesoRel, pesoBase) {
+    var res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + url);
+    var total = +res.headers.get('content-length') || 0;
+    if (!res.body || !res.body.getReader) {
+      var all = await res.arrayBuffer();
+      if (onProgreso) onProgreso({ file: url, progress: pesoBase + pesoRel });
+      return all;
+    }
+    var reader = res.body.getReader();
+    var chunks = [];
+    var rec = 0;
+    while (true) {
+      var step = await reader.read();
+      if (step.done) break;
+      chunks.push(step.value);
+      rec += step.value.length;
+      if (onProgreso) {
+        var frac = total ? rec / total : 0.5;
+        onProgreso({ file: url, progress: pesoBase + frac * pesoRel });
+      }
+    }
+    var out = new Uint8Array(rec);
+    var o = 0;
+    for (var i = 0; i < chunks.length; i++) { out.set(chunks[i], o); o += chunks[i].length; }
+    return out.buffer;
+  }
+
+  async function asegurarOrt() {
+    if (global.ort) return global.ort;
+    await new Promise(function (ok, bad) {
+      var s = document.createElement('script');
+      s.src = ORT_SRC;
+      s.onload = ok;
+      s.onerror = function () { bad(new Error('No cargó ONNX Runtime')); };
+      document.head.appendChild(s);
+    });
+    try {
+      var w = global.ort.env.wasm;
+      w.wasmPaths = ORT_WASM;
+      w.simd = true;
+      var aislado = typeof crossOriginIsolated !== 'undefined' && !!crossOriginIsolated;
+      var cores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 1;
+      w.numThreads = aislado ? Math.min(4, cores) : 1;
+      w.proxy = !!aislado;
+    } catch (_) {}
+    return global.ort;
+  }
+
+  async function crearSesion(buf) {
+    var ort = await asegurarOrt();
+    var gpu = false;
+    if (webgpu && navigator.gpu) {
+      try { gpu = !!(await navigator.gpu.requestAdapter()); } catch (_) { gpu = false; }
+    }
+    var providers = gpu ? ['webgpu', 'wasm'] : ['wasm'];
+    var last;
+    for (var i = 0; i < providers.length; i++) {
+      try {
+        return await ort.InferenceSession.create(buf, { executionProviders: [providers[i]] });
+      } catch (e) { last = e; }
+    }
+    throw last || new Error('ONNX session');
+  }
+
+  async function cargar(opciones) {
+    opciones = opciones || {};
+    onProgreso = opciones.onProgreso || opciones.onProgress || null;
+    var v = opciones.variante || activa || 'fp16';
+    activa = v;
+    var p = pack(v);
+    if (sesiones[v] && sesiones[v].seg && sesiones[v].emb) {
+      sesSeg = sesiones[v].seg; sesEmb = sesiones[v].emb;
+      setEstado('listo');
+      return { ok: true, cache: true, modo: 'profesional', variante: v };
+    }
+    if (cargaEnCurso) return cargaEnCurso;
+    setEstado('descargando');
+    cargaEnCurso = (async function () {
+      try {
+        var segBuf = await leerOPFS(p.seg);
+        var embBuf = await leerOPFS(p.emb);
+        if (!segBuf) {
+          if (onProgreso) onProgreso({ file: p.seg, progress: 2 });
+          segBuf = await bajarConProgreso(urlModelo(p.seg), 30, 5);
+          await escribirOPFS(p.seg, segBuf);
+        }
+        if (!embBuf) {
+          if (onProgreso) onProgreso({ file: p.emb, progress: 40 });
+          embBuf = await bajarConProgreso(urlModelo(p.emb), 50, 40);
+          await escribirOPFS(p.emb, embBuf);
+        }
+        for (var ei = 0; ei < EXTRA.length; ei++) {
+          try {
+            if (!(await leerOPFS(EXTRA[ei]))) {
+              var extraBuf = await bajarConProgreso(urlModelo(EXTRA[ei]), 1, 91);
+              await escribirOPFS(EXTRA[ei], extraBuf);
+            }
+          } catch (_) {}
+        }
+        if (onProgreso) onProgreso({ file: 'sesión', progress: 96 });
+        sesSeg = await crearSesion(segBuf);
+        sesEmb = await crearSesion(embBuf);
+        sesiones[v] = { seg: sesSeg, emb: sesEmb };
+        setEstado('listo');
+        return { ok: true, modo: 'profesional', variante: v, origen: urlModelo(''), webgpu: webgpu, mb: p.mb };
+      } catch (e) {
+        setEstado('error', e.message || e);
+        throw e;
+      } finally {
+        cargaEnCurso = null;
+      }
+    })();
+    return cargaEnCurso;
+  }
+
+  async function pcm16k(blob) {
+    var AC = global.AudioContext || global.webkitAudioContext;
+    if (!AC || !blob) return null;
+    var ac = new AC();
+    var raw;
+    try { raw = await blob.arrayBuffer(); } catch (e) { try { ac.close(); } catch (_) {} throw e; }
+    var buf;
+    try { buf = await ac.decodeAudioData(raw.slice(0)); }
+    finally { try { ac.close(); } catch (_) {} }
+    var n = buf.length, chs = buf.numberOfChannels, sr = buf.sampleRate;
+    var mono = new Float32Array(n);
+    for (var c = 0; c < chs; c++) {
+      var ch = buf.getChannelData(c);
+      for (var i = 0; i < n; i++) mono[i] += ch[i] / chs;
+    }
+    if (sr === 16000) return mono;
+    var ratio = sr / 16000, outLen = Math.max(1, Math.round(n / ratio));
+    var out = new Float32Array(outLen);
+    for (var j = 0; j < outLen; j++) {
+      var x = j * ratio, i0 = Math.floor(x), i1 = Math.min(n - 1, i0 + 1), f = x - i0;
+      out[j] = mono[i0] * (1 - f) + mono[i1] * f;
+    }
+    return out;
+  }
+
+  function tensorDe(ort, arr, dims) {
+    return new ort.Tensor('float32', arr, dims);
+  }
+
+  function pickInput(ses, prefer) {
+    var names = ses.inputNames || [];
+    for (var i = 0; i < prefer.length; i++) {
+      if (names.indexOf(prefer[i]) >= 0) return prefer[i];
+    }
+    return names[0];
+  }
+
+  async function correrSeg(pcm) {
+    if (!sesSeg) throw new Error('sin segmentación');
+    var ort = global.ort;
+    var name = pickInput(sesSeg, ['waveform', 'input', 'audio', 'input_values']);
+    var feeds = {};
+    feeds[name] = tensorDe(ort, pcm, [1, pcm.length]);
+    try {
+      return await sesSeg.run(feeds);
+    } catch (_) {
+      feeds[name] = tensorDe(ort, pcm, [1, 1, pcm.length]);
+      return await sesSeg.run(feeds);
+    }
+  }
+
+  function logitsATurnos(out, dur) {
+    var key = (sesSeg.outputNames && sesSeg.outputNames[0]) || Object.keys(out)[0];
+    var ten = out[key];
+    if (!ten) return [];
+    var data = ten.data;
+    var dims = ten.dims || [];
+    var frames, clases;
+    if (dims.length === 3) { frames = dims[1]; clases = dims[2]; }
+    else if (dims.length === 2) { frames = dims[0]; clases = dims[1]; }
+    else { clases = 7; frames = Math.floor(data.length / clases); }
+    var hop = dur / Math.max(1, frames);
+    var turnos = [];
+    var cur = '', t0 = 0;
+    for (var i = 0; i <= frames; i++) {
+      var hab = '';
+      if (i < frames) {
+        var off = i * clases, best = 0, val = data[off];
+        for (var c = 1; c < clases; c++) if (data[off + c] > val) { val = data[off + c]; best = c; }
+        hab = best === 0 ? '' : String(best);
+      }
+      if (hab !== cur) {
+        if (cur) turnos.push({ t0: t0, t1: Math.min(dur, i * hop), hablante: cur });
+        cur = hab;
+        t0 = i * hop;
+      }
+    }
+    return turnos.filter(function (t) { return t.t1 - t.t0 >= 0.18; });
+  }
+
+  function vadTurnos(pcm, sr) {
+    var win = Math.floor(sr * 0.02);
+    var th = 0.012, on = false, t0 = 0;
+    var out = [];
+    for (var i = 0; i + win <= pcm.length; i += win) {
+      var e = 0;
+      for (var k = 0; k < win; k++) e += pcm[i + k] * pcm[i + k];
+      var rms = Math.sqrt(e / win);
+      var t = i / sr;
+      if (!on && rms >= th) { on = true; t0 = t; }
+      if (on && rms < th * 0.6) {
+        if (t - t0 >= 0.25) out.push({ t0: t0, t1: t, hablante: '1' });
+        on = false;
+      }
+    }
+    if (on && pcm.length / sr - t0 >= 0.25) out.push({ t0: t0, t1: pcm.length / sr, hablante: '1' });
+    return out;
+  }
+
+  function hann(n) {
+    var w = new Float32Array(n);
+    for (var i = 0; i < n; i++) w[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / Math.max(1, n - 1));
+    return w;
+  }
+
+  function hzMel(hz) { return 2595 * Math.log10(1 + hz / 700); }
+  function melHz(m) { return 700 * (Math.pow(10, m / 2595) - 1); }
+
+  function filtroMel(nfft, sr, nmel) {
+    var fmax = sr / 2;
+    var mmin = hzMel(0), mmax = hzMel(fmax);
+    var pts = [];
+    for (var i = 0; i < nmel + 2; i++) pts.push(melHz(mmin + (mmax - mmin) * i / (nmel + 1)));
+    var bins = pts.map(function (f) { return Math.floor((nfft + 1) * f / sr); });
+    var w = [];
+    for (var m = 0; m < nmel; m++) {
+      var row = new Float32Array(nfft / 2 + 1);
+      var k;
+      for (k = bins[m]; k < bins[m + 1]; k++) if (k >= 0 && k < row.length) row[k] = (k - bins[m]) / Math.max(1, bins[m + 1] - bins[m]);
+      for (k = bins[m + 1]; k < bins[m + 2]; k++) if (k >= 0 && k < row.length) row[k] = (bins[m + 2] - k) / Math.max(1, bins[m + 2] - bins[m + 1]);
+      w.push(row);
+    }
+    return w;
+  }
+
+  function dftMag(frame) {
+    var n = frame.length, half = n / 2 + 1;
+    var mag = new Float32Array(half);
+    for (var k = 0; k < half; k++) {
+      var re = 0, im = 0;
+      for (var t = 0; t < n; t++) {
+        var ang = (2 * Math.PI * k * t) / n;
+        re += frame[t] * Math.cos(ang);
+        im -= frame[t] * Math.sin(ang);
+      }
+      mag[k] = re * re + im * im;
+    }
+    return mag;
+  }
+
+  function fbank80(pcm, sr) {
+    var nfft = 512, winN = Math.floor(sr * 0.025), hop = Math.floor(sr * 0.01);
+    var w = hann(winN);
+    var mels = filtroMel(nfft, sr, 80);
+    var nfr = Math.max(1, Math.floor((pcm.length - winN) / hop) + 1);
+    var out = new Float32Array(80 * nfr);
+    var frame = new Float32Array(nfft);
+    var means = new Float32Array(80);
+    var i, m, t;
+    for (i = 0; i < nfr; i++) {
+      frame.fill(0);
+      var a = i * hop;
+      for (t = 0; t < winN && a + t < pcm.length; t++) frame[t] = pcm[a + t] * w[t];
+      var mag = dftMag(frame);
+      for (m = 0; m < 80; m++) {
+        var s = 0;
+        var row = mels[m];
+        for (var k = 0; k < row.length; k++) s += mag[k] * row[k];
+        var v = Math.log(s + 1e-6);
+        out[m * nfr + i] = v;
+        means[m] += v;
+      }
+    }
+    for (m = 0; m < 80; m++) means[m] /= nfr;
+    for (i = 0; i < nfr; i++) for (m = 0; m < 80; m++) out[m * nfr + i] -= means[m];
+    return { data: out, frames: nfr };
+  }
+
+  async function embedTurno(pcm, t0, t1) {
+    var sr = 16000;
+    var a = Math.max(0, Math.floor(t0 * sr));
+    var b = Math.min(pcm.length, Math.floor(t1 * sr));
+    if (b - a < sr * 0.2) return null;
+    var sl = pcm.subarray(a, b);
+    var fb = fbank80(sl, sr);
+    var ort = global.ort;
+    var name = pickInput(sesEmb, ['feats', 'feature', 'input', 'fbank', 'audio']);
+    var shapes = [
+      [1, 80, fb.frames],
+      [1, 1, 80, fb.frames],
+      [1, fb.frames, 80]
+    ];
+    var last;
+    for (var i = 0; i < shapes.length; i++) {
+      try {
+        var feeds = {};
+        var arr = fb.data;
+        if (shapes[i][1] === fb.frames && shapes[i][2] === 80) {
+          arr = new Float32Array(80 * fb.frames);
+          for (var tt = 0; tt < fb.frames; tt++)
+            for (var mm = 0; mm < 80; mm++) arr[tt * 80 + mm] = fb.data[mm * fb.frames + tt];
+        }
+        feeds[name] = tensorDe(ort, arr, shapes[i]);
+        var out = await sesEmb.run(feeds);
+        var key = (sesEmb.outputNames && sesEmb.outputNames[0]) || Object.keys(out)[0];
+        var ten = out[key];
+        var vec = Array.prototype.slice.call(ten.data);
+        var nrm = 0; for (var j = 0; j < vec.length; j++) nrm += vec[j] * vec[j];
+        nrm = Math.sqrt(nrm) || 1;
+        for (j = 0; j < vec.length; j++) vec[j] /= nrm;
+        return vec;
+      } catch (e) { last = e; }
+    }
+    throw last || new Error('embedding');
+  }
+
+  function clusterEmb(vecs, maxK) {
+    var n = vecs.length;
+    if (!n) return [];
+    var lab = vecs.map(function (_, i) { return i; });
+    function cos(i, j) {
+      var s = 0;
+      for (var d = 0; d < vecs[i].length; d++) s += vecs[i][d] * vecs[j][d];
+      return 1 - s;
+    }
+    var TH = 0.35;
+    while (new Set(lab).size > 1) {
+      var ids = Array.from(new Set(lab)), best = Infinity, ia = -1, ib = -1, a, b, p, q;
+      for (a = 0; a < ids.length; a++) for (b = a + 1; b < ids.length; b++) {
+        var acc = 0, cnt = 0;
+        for (p = 0; p < n; p++) if (lab[p] === ids[a])
+          for (q = 0; q < n; q++) if (lab[q] === ids[b]) { acc += cos(p, q); cnt++; }
+        var dd = cnt ? acc / cnt : Infinity;
+        if (dd < best) { best = dd; ia = ids[a]; ib = ids[b]; }
+      }
+      if (ia < 0 || (new Set(lab).size <= maxK && best > TH)) break;
+      if (best > 0.55) break;
+      for (p = 0; p < n; p++) if (lab[p] === ib) lab[p] = ia;
+    }
+    var map = {}, out = [], k = 0;
+    for (var i = 0; i < n; i++) {
+      if (map[lab[i]] == null) map[lab[i]] = String(++k);
+      out.push(map[lab[i]]);
+    }
+    return out;
+  }
+
+  function feats(pcm, sr, t0, t1) {
+    var a = Math.max(0, Math.floor(t0 * sr));
+    var b = Math.min(pcm.length, Math.floor(t1 * sr));
+    if (b - a < sr * 0.12) return null;
+    var sl = pcm.subarray(a, b);
+    var e = 0, zc = 0, i;
+    for (i = 0; i < sl.length; i++) {
+      e += sl[i] * sl[i];
+      if (i && ((sl[i] >= 0) !== (sl[i - 1] >= 0))) zc++;
+    }
+    var rms = Math.sqrt(e / sl.length);
+    if (rms < 0.004) return null;
+    return [Math.log(rms + 1e-6), zc / sl.length, rms];
+  }
+
+  function clusterLigero(vecs, maxK) {
+    var n = vecs.length;
+    if (!n) return [];
+    var lab = vecs.map(function (_, i) { return i; });
+    function dist(i, j) {
+      var s = 0;
+      for (var d = 0; d < vecs[i].length; d++) {
+        var x = vecs[i][d] - vecs[j][d]; s += x * x;
+      }
+      return Math.sqrt(s);
+    }
+    var TH = 0.8;
+    while (new Set(lab).size > 1) {
+      var ids = Array.from(new Set(lab)), best = Infinity, ia = -1, ib = -1, a, b, p, q;
+      for (a = 0; a < ids.length; a++) for (b = a + 1; b < ids.length; b++) {
+        var acc = 0, cnt = 0;
+        for (p = 0; p < n; p++) if (lab[p] === ids[a])
+          for (q = 0; q < n; q++) if (lab[q] === ids[b]) { acc += dist(p, q); cnt++; }
+        var dd = cnt ? acc / cnt : Infinity;
+        if (dd < best) { best = dd; ia = ids[a]; ib = ids[b]; }
+      }
+      if (ia < 0 || (new Set(lab).size <= maxK && best > TH) || best > TH * 2) break;
+      for (p = 0; p < n; p++) if (lab[p] === ib) lab[p] = ia;
+    }
+    var map = {}, out = [], k = 0;
+    for (var i = 0; i < n; i++) {
+      if (map[lab[i]] == null) map[lab[i]] = String(++k);
+      out.push(map[lab[i]]);
+    }
+    return out;
+  }
+
+  async function diarizarLigero(blob, cues, maxK) {
+    var wav = await pcm16k(blob);
+    if (!wav) throw new Error('No se pudo leer el audio');
+    var sr = 16000;
+    var turnos = [];
+    if (cues && cues.length) {
+      var vecs = [], idx = [];
+      cues.forEach(function (c, i) {
+        var f = feats(wav, sr, c.t0, c.t1);
+        if (f) { vecs.push(f); idx.push(i); }
+      });
+      var labs = clusterLigero(vecs, maxK);
+      var asig = new Array(cues.length).fill('');
+      idx.forEach(function (i, k) { asig[i] = labs[k] || '1'; });
+      for (var i = 0; i < asig.length; i++) if (!asig[i]) asig[i] = (i && asig[i - 1]) ? asig[i - 1] : '1';
+      cues.forEach(function (c, ix) {
+        turnos.push({ t0: c.t0, t1: c.t1, hablante: asig[ix] || '1' });
+      });
+    }
+    return turnos;
+  }
+
+  async function diarizarProfesional(blob, cues, maxK) {
+    var pcm = await pcm16k(blob);
+    if (!pcm) throw new Error('audio');
+    var dur = pcm.length / 16000;
+    var segs = [];
+    try {
+      var out = await correrSeg(pcm);
+      segs = logitsATurnos(out, dur);
+    } catch (_) {
+      segs = vadTurnos(pcm, 16000);
+    }
+    if (!segs.length && cues && cues.length) {
+      segs = cues.map(function (c) { return { t0: c.t0, t1: c.t1, hablante: '1' }; });
+    }
+    var vecs = [], keep = [];
+    for (var i = 0; i < segs.length; i++) {
+      try {
+        var v = await embedTurno(pcm, segs[i].t0, segs[i].t1);
+        if (v) { vecs.push(v); keep.push(segs[i]); }
+      } catch (_) {}
+    }
+    if (!vecs.length) throw new Error('sin embeddings');
+    var labs = clusterEmb(vecs, maxK);
+    return keep.map(function (s, k) {
+      return { t0: s.t0, t1: s.t1, hablante: labs[k] || '1' };
+    });
+  }
+
+  async function diarizar(blob, opciones) {
+    opciones = opciones || {};
+    var maxK = Math.max(2, Math.min(5, +opciones.maxK || 3));
+    var cues = opciones.cues || [];
+    var modo = opciones.modo || 'auto';
+    var variante = opciones.variante || activa || 'fp16';
+    if (modo === 'ligero' || modo === 'rapido' || modo === 'off') {
+      return { turnos: await diarizarLigero(blob, cues, maxK), modo: 'ligero' };
+    }
+    try {
+      await cargar({ onProgreso: onProgreso, variante: variante });
+      var turnos = await diarizarProfesional(blob, cues, maxK);
+      if (!turnos.length && cues.length) {
+        return { turnos: await diarizarLigero(blob, cues, maxK), modo: 'ligero', aviso: 'sin-turnos' };
+      }
+      return { turnos: turnos, modo: 'profesional', variante: variante, origen: urlModelo('') };
+    } catch (e) {
+      ultimoError = String(e.message || e);
+      if (modo === 'profesional' && opciones.fallback === false) throw e;
+      return { turnos: await diarizarLigero(blob, cues, maxK), modo: 'ligero', aviso: ultimoError };
+    }
+  }
+
+  function solape(a0, a1, b0, b1) {
+    return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+  }
+
+  function fusionar(cues, turnos) {
+    return (cues || []).map(function (c) {
+      var best = '', bestS = 0;
+      (turnos || []).forEach(function (t) {
+        var s = solape(c.t0, c.t1, t.t0, t.t1);
+        if (s > bestS) { bestS = s; best = t.hablante; }
+      });
+      return { id: c.id, t0: c.t0, t1: c.t1, hablante: best || '1' };
+    });
+  }
+
+  async function borrar(v) {
+    if (v && VARIANTES[v]) {
+      var p = pack(v);
+      await borrarArchivo(p.seg);
+      sesiones[v] = { seg: null, emb: null };
+      var otra = v === 'fp16' ? 'fp32' : 'fp16';
+      if (!(await hayCache(otra))) {
+        await borrarArchivo(p.emb);
+        sesiones.fp16.emb = null;
+        sesiones.fp32.emb = null;
+        sesEmb = null;
+      }
+      if (activa === v) sesSeg = null;
+    } else {
+      sesSeg = null; sesEmb = null;
+      sesiones = { fp16: { seg: null, emb: null }, fp32: { seg: null, emb: null } };
+      try {
+        if (navigator.storage && navigator.storage.getDirectory) {
+          var root = await navigator.storage.getDirectory();
+          try { await root.removeEntry('diar-engine', { recursive: true }); } catch (_) {}
+        }
+      } catch (_) {}
+    }
+    setEstado('no-descargado');
+    return { ok: true };
+  }
+
+  (async function probe() {
+    try { if (await hayCache()) setEstado('cache'); } catch (_) {}
+  })();
+
+  global.DiarizationEngine = {
+    cargar: cargar,
+    diarizar: diarizar,
+    fusionar: fusionar,
+    borrar: borrar,
+    estado: function () { return estado; },
+    error: function () { return ultimoError; },
+    modelo: function () { return urlModelo(''); },
+    mb: function (v) { return pack(v || activa).mb; },
+    hayCache: hayCache,
+    serverBase: serverBase,
+    variantes: function () { return VARIANTES; }
+  };
+})(typeof window !== 'undefined' ? window : self);
+
+</script>
+
 <script>
 
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260914e';
+  const GS_VER = '20260914f';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -4132,7 +5694,10 @@ window.Grabadora = null;
   registrarSW();
   if ($('verApp')) $('verApp').textContent = GS_VER;
   try {
-    console.info('[Grabadora] versión', GS_VER);
+    console.info('[Grabadora] versión', GS_VER,
+      'motores embebidos Whisper', !!window.WhisperEngine,
+      'Moonshine', !!window.MoonshineEngine,
+      'Diar', !!window.DiarizationEngine);
     console.info('[Grabadora] motores',
       'Whisper', !!window.WhisperEngine,
       'Moonshine', !!window.MoonshineEngine,
