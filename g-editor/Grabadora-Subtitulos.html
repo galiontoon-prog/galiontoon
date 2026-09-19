@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260914n">
+<meta name="gs-ver" content="20260914s">
 <title>Grabadora</title>
 <style>
 :root{
@@ -757,6 +757,8 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     try {
       if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
         env.backends.onnx.wasm.wasmPaths = TF_DIST;
+        env.backends.onnx.wasm.simd = true;
+        env.backends.onnx.wasm.numThreads = 1;
       }
     } catch (_) {}
   }
@@ -929,6 +931,23 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     var sr = buf.sampleRate;
     if (sr === 16000) return mono;
     var ratio = sr / 16000;
+    var outLen = Math.max(1, Math.round(n / ratio));
+    var out = new Float32Array(outLen);
+    for (var j = 0; j < outLen; j++) {
+      var x = j * ratio;
+      var i0 = Math.floor(x);
+      var i1 = Math.min(n - 1, i0 + 1);
+      var f = x - i0;
+      out[j] = mono[i0] * (1 - f) + mono[i1] * f;
+    }
+    return out;
+  }
+  function resamplePcm(mono, sr) {
+    if (!mono || !mono.length) return new Float32Array(0);
+    if (!(mono instanceof Float32Array)) mono = new Float32Array(mono);
+    sr = +sr || 16000;
+    if (sr === 16000) return mono;
+    var n = mono.length, ratio = sr / 16000;
     var outLen = Math.max(1, Math.round(n / ratio));
     var out = new Float32Array(outLen);
     for (var j = 0; j < outLen; j++) {
@@ -1160,13 +1179,13 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       'env.useBrowserCache = true;',
       'env.remoteHost = "' + HF_HOST + '";',
       'env.remotePathTemplate = "{model}/resolve/{revision}/";',
-      'try { if (env.backends && env.backends.onnx && env.backends.onnx.wasm) env.backends.onnx.wasm.wasmPaths = "' + TF_DIST + '"; } catch (e) {}',
+      'try { if (env.backends && env.backends.onnx && env.backends.onnx.wasm) { env.backends.onnx.wasm.wasmPaths = "' + TF_DIST + '"; env.backends.onnx.wasm.simd = true; env.backends.onnx.wasm.numThreads = 1; } } catch (e) {}',
       'let pipe = null;',
       'let info = { device: "wasm", dtype: "q8" };',
       'async function inferir(audio, language, extra) {',
       '  extra = extra || {};',
       '  const live = !!extra.live;',
-      '  const opts = { task: "transcribe", return_timestamps: extra.timestamps !== false, chunk_length_s: extra.chunk_length_s || (live ? 8 : 20), stride_length_s: extra.stride_length_s || (live ? 1 : 2), no_speech_threshold: extra.no_speech_threshold != null ? extra.no_speech_threshold : 0.5, logprob_threshold: extra.logprob_threshold != null ? extra.logprob_threshold : -0.8, compression_ratio_threshold: extra.compression_ratio_threshold != null ? extra.compression_ratio_threshold : 2.4, condition_on_previous_text: false };',
+      '  const opts = { task: "transcribe", return_timestamps: live ? false : extra.timestamps !== false, chunk_length_s: extra.chunk_length_s || (live ? 6 : 20), stride_length_s: extra.stride_length_s || (live ? 1 : 2), no_speech_threshold: extra.no_speech_threshold != null ? extra.no_speech_threshold : 0.5, logprob_threshold: extra.logprob_threshold != null ? extra.logprob_threshold : -0.8, compression_ratio_threshold: extra.compression_ratio_threshold != null ? extra.compression_ratio_threshold : 2.4, condition_on_previous_text: false };',
       '  if (language) opts.language = language;',
       '  const sr = 16000, win = 30 * sr, hop = 28 * sr;',
       '  if (!audio || audio.length <= win * 1.15) return pipe(audio, opts);',
@@ -1195,9 +1214,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       '  try {',
       '    if (tipo === "cargar") {',
       '      if (pipe) { self.postMessage({ id, tipo: "ok", info }); return; }',
-      '      const intentos = payload.webgpu',
-      '        ? [["webgpu","q8"],["wasm","q8"]]',
-      '        : [["wasm","q8"]];',
+      '      const intentos = payload.webgpu ? [["webgpu","q8"]] : [["wasm","q8"]];',
       '      let lastErr = null;',
       '      for (const pair of intentos) {',
       '        let device = pair[0], dtype = pair[1];',
@@ -1306,8 +1323,22 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     cargaEnCurso = (async function () {
       try {
         try {
-          arrancarWorker();
-          var info = await llamarWorker('cargar', { model: MODELO, webgpu: false });
+          var info = null;
+          var quiereGpu = typeof navigator !== 'undefined' && !!navigator.gpu;
+          if (quiereGpu) {
+            try {
+              arrancarWorker();
+              info = await llamarWorker('cargar', { model: MODELO, webgpu: true });
+            } catch (eGpu) {
+              try { if (worker) worker.terminate(); } catch (_) {}
+              worker = null;
+              info = null;
+            }
+          }
+          if (!info || !worker) {
+            arrancarWorker();
+            info = await llamarWorker('cargar', { model: MODELO, webgpu: false });
+          }
           if (info && info.device) {
             deviceUsado = info.device || 'wasm';
             dtypeUsado = info.dtype || 'q8';
@@ -1315,7 +1346,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
             deviceUsado = 'wasm';
             dtypeUsado = 'q8';
           }
-          webgpuOk = false;
+          webgpuOk = deviceUsado === 'webgpu';
           setEstado('listo');
           await marcarOPFS(true);
           return { ok: true, via: 'worker', device: deviceUsado, dtype: dtypeUsado };
@@ -1361,6 +1392,21 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     }
     if (!(blob instanceof Blob)) throw new Error('transcribir espera un Blob de audio');
     var audio = await pcm16k(blob);
+    return transcribirAudio(audio, opciones, t0);
+  }
+  async function transcribirPcm(pcm, sr, opciones) {
+    opciones = opciones || {};
+    var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    return encolarInfer(function () {
+      return transcribirAudio(resamplePcm(pcm, sr), opciones, t0);
+    });
+  }
+  async function transcribirAudio(audio, opciones, t0) {
+    opciones = opciones || {};
+    if (estado !== 'listo') {
+      if (opciones.exigirListo) throw new Error('Modelo Whisper no listo');
+      await cargar({ onProgreso: onProgreso, modelo: opciones.modelo || 'tiny' });
+    }
     var rawLang = String(opciones.idioma || opciones.language || '').toLowerCase();
     var lang = (!rawLang || rawLang === 'auto') ? null : idiomaWhisper(rawLang);
     if (idiomaSesion && lang && idiomaSesion !== lang) idiomaSesion = lang;
@@ -1377,7 +1423,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       compression_ratio_threshold: opciones.compression_ratio_threshold
     };
     if (worker) {
-      r = await llamarWorker('transcribir', { audio: audio, language: lang, extra: extra });
+      r = await llamarWorker('transcribir', { audio: audio, language: lang, extra: extra }, audio && audio.buffer ? [audio.buffer] : []);
     } else if (pipe) {
       var popts = {
         task: 'transcribe',
@@ -1438,6 +1484,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   global.WhisperEngine = {
     cargar: cargar,
     transcribir: transcribir,
+    transcribirPcm: transcribirPcm,
     borrar: borrar,
     marcarIdioma: marcarIdioma,
     idiomaListo: idiomaListo,
@@ -1647,6 +1694,39 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     }
     return { segmentos: segs, bruto: r, ms: ms };
   }
+  async function transcribirPcm(pcm, sr) {
+    if (estado !== 'listo') await cargar({ onProgreso: onProgreso });
+    var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    var mono = pcm instanceof Float32Array ? pcm : new Float32Array(pcm || []);
+    sr = +sr || 16000;
+    var dec;
+    if (sr === 16000) dec = { pcm: mono, dur: mono.length / 16000 };
+    else {
+      var ratio = sr / 16000;
+      var outLen = Math.max(1, Math.round(mono.length / ratio));
+      var out = new Float32Array(outLen);
+      for (var j = 0; j < outLen; j++) {
+        var x = j * ratio;
+        var i0 = Math.floor(x);
+        var i1 = Math.min(mono.length - 1, i0 + 1);
+        var f = x - i0;
+        out[j] = mono[i0] * (1 - f) + mono[i1] * f;
+      }
+      dec = { pcm: out, dur: outLen / 16000 };
+    }
+    var r = await pipe(dec.pcm);
+    var ms = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0;
+    log('chunk procesado en', Math.round(ms), 'ms');
+    var segs = [];
+    var txt = String((r && r.text) || '').trim();
+    if (r && Array.isArray(r.chunks) && r.chunks.length) {
+      r.chunks.forEach(function (ch) {
+        var texto = String(ch.text || '').trim();
+        if (texto) segs.push({ t0: 0, t1: dec.dur, texto: texto });
+      });
+    } else if (txt) segs.push({ t0: 0, t1: dec.dur || 1, texto: txt });
+    return { segmentos: segs, bruto: r, ms: ms };
+  }
 
   async function liberar() {
     try { if (pipe && pipe.dispose) await pipe.dispose(); } catch (_) {}
@@ -1674,6 +1754,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   global.MoonshineEngine = {
     cargar: cargar,
     transcribir: transcribir,
+    transcribirPcm: transcribirPcm,
     liberar: liberar,
     borrar: borrar,
     estado: function () { return estado; },
@@ -2313,7 +2394,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260914n';
+  const GS_VER = '20260914s';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -2917,10 +2998,13 @@ window.Grabadora = null;
   }
   function bucleOnda(){
     if (estado !== GRABANDO || !analyser) return;
-    const buf = new Uint8Array(analyser.fftSize);
-    analyser.getByteTimeDomainData(buf);
-    pintarOnda(true, buf);
-    tickAutoRms();
+    bucleOnda._n = (bucleOnda._n || 0) + 1;
+    if (bucleOnda._n % 2 === 0){
+      const buf = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(buf);
+      pintarOnda(true, buf);
+      tickAutoRms();
+    }
     raf = requestAnimationFrame(bucleOnda);
   }
   function filaToma(id){ return document.querySelector('#lista .li[data-id="'+id+'"]'); }
@@ -3353,7 +3437,7 @@ window.Grabadora = null;
       if (url) URL.revokeObjectURL(url);
       url = blob.size ? URL.createObjectURL(blob) : null;
       if (!chunks.length || blob.size < 32) aviso('El micrófono no entregó audio.', 'err');
-      else { guardarToma(); pintarLive(true); }
+      else { guardarToma(); pintarLive(true); speechCues.forEach(c => pedirTradLive(c)); }
       soltarClon(); pintarOnda(false);
       estado = COMPLETADO; pintarBadge();
     };
@@ -3809,10 +3893,16 @@ window.Grabadora = null;
     const tok = ++liveTradTok;
     cue._tradPend = tok;
     clearTimeout(cue._tradT);
+    if (estado === GRABANDO){
+      cue.trad = cue.trad || '';
+      return;
+    }
     cue._tradT = setTimeout(() => {
       if (cue._tradPend !== tok) return;
-      Promise.resolve().then(function () { return traducirLiveLinea(cue); });
-    }, cue.cerrada ? 220 : 900);
+      requestAnimationFrame(function () {
+        Promise.resolve().then(function () { return traducirLiveLinea(cue); });
+      });
+    }, cue.cerrada ? 400 : 1200);
   }
   function meterLiveTexto(texto){
     texto = limpiaLiveTxt(texto);
@@ -3949,16 +4039,11 @@ window.Grabadora = null;
       try { console.warn('[Whisper] motor no está en la página'); } catch(_){}
       return false;
     }
-    if (whisperListo()){
-      await soltarAsrContrario('whisper');
-      return true;
-    }
     try{
       await soltarAsrContrario('whisper');
       liveMsg('Cargando Whisper…');
-      const tam = (($('selModeloWh')||{}).value) || 'tiny';
       await eng.cargar({
-        modelo: tam,
+        modelo: 'tiny',
         onProgreso: p => {
           const n = Math.round(p && p.progress || 0);
           if (n) liveMsg('Cargando Whisper… '+n+'%');
@@ -4039,7 +4124,11 @@ window.Grabadora = null;
     if (!liveCap.cola || !liveCap.cola.length) return;
     try { console.info('[En vivo] motor listo, procesando chunks', liveCap.cola.length); } catch(_){}
     const pend = liveCap.cola.slice(); liveCap.cola = [];
-    for (let i = 0; i < pend.length; i++) await transcribirLiveBlob(pend[i], true);
+    for (let i = 0; i < pend.length; i++){
+      const it = pend[i];
+      if (it && it.pcm) await transcribirLivePcm(it.pcm, it.sr || 48000);
+      else await transcribirLiveBlob(it, true);
+    }
   }
   async function transcribirLiveBlob(blob, yaListo){
     if (!blob || blob.size < 64) return;
@@ -4074,6 +4163,9 @@ window.Grabadora = null;
         if (!voz || !voz.length){
           try { console.info('[En vivo] Silero: chunk sin voz humana — se envía igual si hay señal'); } catch(_){}
         }
+      } else if (usarWhisperLive) {
+        liveCap.sileroOk = false;
+        voz = [{ t0: 0, t1: 1, texto: '[voz]' }];
       } else {
         liveCap.sileroOk = false;
         try { console.info('[En vivo] VAD energía (Silero no listo)'); } catch(_){}
@@ -4112,7 +4204,7 @@ window.Grabadora = null;
           const t0w = performance.now();
           r = await engWh.transcribir(blob, {
             idioma: idiomaHablaLive() || livePar().src,
-            modelo: (($('selModeloWh')||{}).value) || 'tiny',
+            modelo: 'tiny',
             live: true,
             exigirListo: false,
             chunk_length_s: 8,
@@ -4157,6 +4249,61 @@ window.Grabadora = null;
       aviso('Whisper no transcribió el audio en vivo: '+msg, 'err');
     }
   }
+  async function aplicarSegsLive(r){
+    const segs = ((r && r.segmentos) || []).filter(s => {
+      const tx = String(s.texto||'').trim();
+      if (tx.length < 2) return false;
+      if (esEcoLive(tx)) return false;
+      return true;
+    });
+    const txt = segs.map(s => s.texto).join(' ').trim();
+    if (txt){
+      try { console.info('[En vivo] texto generado:', txt.slice(0, 80)); } catch(_){}
+      meterLiveTexto(txt);
+    }
+  }
+  async function transcribirLivePcm(pcm, sr){
+    if (!pcm || !pcm.length) return;
+    const engWh = window.WhisperEngine;
+    const engMo = window.MoonshineEngine;
+    const usarMo = motorLiveEfectivo() !== 'whisper' && moonshineListo() && engMo && (engMo.transcribirPcm || engMo.transcribir);
+    let r = null;
+    try{
+      if (usarMo){
+        try {
+          const t0m = performance.now();
+          r = engMo.transcribirPcm ? await engMo.transcribirPcm(pcm, sr) : null;
+          try { console.info('[Moonshine] chunk procesado en', Math.round(performance.now() - t0m), 'ms'); } catch(_){}
+        } catch(e){
+          try { console.warn('[Moonshine] ERROR pcm', e); } catch(_){}
+          r = null;
+        }
+      }
+      if (!r){
+        const okWh = whisperListo() || await asegurarWhisperLive();
+        if (!okWh || !engWh){
+          liveCap.cola = liveCap.cola || [];
+          if (liveCap.cola.length < 12) liveCap.cola.push({ pcm: pcm, sr: sr });
+          liveMsg('Cargando Whisper…');
+          return;
+        }
+        try {
+          const t0w = performance.now();
+          r = engWh.transcribirPcm
+            ? await engWh.transcribirPcm(pcm, sr, { idioma: idiomaHablaLive() || livePar().src, modelo:'tiny', live:true, exigirListo:false })
+            : null;
+          try { console.info('[Whisper] chunk procesado en', Math.round(performance.now() - t0w), 'ms', ((r && r.segmentos)||[]).length, 'segs'); } catch(_){}
+        } catch(e){
+          try { console.warn('[Whisper] ERROR pcm', e); } catch(_){}
+          liveMsg('Whisper no transcribió: '+(e.message||e));
+          return;
+        }
+      }
+      await aplicarSegsLive(r);
+    }catch(e){
+      try { console.warn('[En vivo] pcm', e); } catch(_){}
+    }
+  }
   async function flushLiveCap(){
     if (liveCap.busy || !liveCap.buf.length) return;
     liveCap.busy = true;
@@ -4176,13 +4323,12 @@ window.Grabadora = null;
         try { console.warn('[En vivo] chunk en silencio', pico); } catch(__){}
         return;
       }
-      const wav = wavDePcm(pcm, sr);
       if (!liveAsrListo()){
         liveCap.cola = liveCap.cola || [];
-        if (liveCap.cola.length < 12) liveCap.cola.push(wav);
+        if (liveCap.cola.length < 12) liveCap.cola.push({ pcm: pcm, sr: sr });
         return;
       }
-      await transcribirLiveBlob(wav, true);
+      await transcribirLivePcm(pcm, sr);
     }catch(e){
       try { console.warn('[En vivo] flush', e); } catch(__){}
       aviso('En vivo: no se pudo leer el audio capturado.', 'err');
