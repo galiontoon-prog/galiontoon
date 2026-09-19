@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="gs-ver" content="20260914h">
+<meta name="gs-ver" content="20260914i">
 <title>Grabadora</title>
 <style>
 :root{
@@ -1077,7 +1077,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
         else feeds[nm] = new ort.Tensor('float32', sl, [1, hop]);
       }
       try {
-        var out = await sesSilero.run(feeds);
+        var out = await conOrt(function () { return sesSilero.run(feeds); });
         var outKey = outs[0] && out[outs[0]] ? outs[0] : (out.output ? 'output' : Object.keys(out)[0]);
         var p = out[outKey] && out[outKey].data ? out[outKey].data[0] : 0;
         probs.push({ t: i / sr, p: +p });
@@ -1318,7 +1318,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     setEstado('descargando');
     cargaEnCurso = (async function () {
       try {
-        var usarWorker = opciones.worker !== false;
+        var usarWorker = opciones.worker === true;
         if (usarWorker) {
           try {
             arrancarWorker();
@@ -1349,6 +1349,12 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
     return cargaEnCurso;
   }
 
+  var colaOrt = Promise.resolve();
+  function conOrt(fn) {
+    var run = colaOrt.then(fn, fn);
+    colaOrt = run.then(function () {}, function () {});
+    return run;
+  }
   var colaInfer = Promise.resolve();
   function encolarInfer(fn) {
     var run = colaInfer.then(fn, fn);
@@ -1396,7 +1402,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
       popts.logprob_threshold = opciones.logprob_threshold != null ? opciones.logprob_threshold : -0.8;
       popts.compression_ratio_threshold = opciones.compression_ratio_threshold != null ? opciones.compression_ratio_threshold : 2.4;
       popts.condition_on_previous_text = false;
-      return pipe(audio, popts);
+      return conOrt(function () { return pipe(audio, popts); });
     }
     try {
       r = await unaVez();
@@ -2318,7 +2324,7 @@ audio.oculto{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
 window.Grabadora = null;
 (function(){
   'use strict';
-  const GS_VER = '20260914h';
+  const GS_VER = '20260914i';
   const ENTORNO = location.protocol === 'file:' ? 'limitado' : 'completo';
   const CORS_PROXY = ''; /* p.ej. 'https://TU-WORKER.workers.dev/?url='  ver cors-proxy-worker.js */
   const TIENE_WEBGPU = 'gpu' in navigator;
@@ -4039,11 +4045,12 @@ window.Grabadora = null;
     const usarMo = motorLiveEfectivo() !== 'whisper' && moonshineListo() && engMo && engMo.transcribir;
     const engVad = engWh;
     try{
-      if (engVad && engVad.asegurarVad && !(engVad.sileroListo && engVad.sileroListo())){
+      const usarWhisperLive = motorLiveEfectivo() === 'whisper';
+      if (!usarWhisperLive && engVad && engVad.asegurarVad && !(engVad.sileroListo && engVad.sileroListo())){
         try { await engVad.asegurarVad(); } catch(e){ try { console.warn('[Silero] asegurarVad', e); } catch(_){} }
       }
       let voz = null;
-      const sileroOn = !!(window.sileroListo || (engVad && engVad.sileroListo && engVad.sileroListo()));
+      const sileroOn = !usarWhisperLive && !!(window.sileroListo || (engVad && engVad.sileroListo && engVad.sileroListo()));
       if (sileroOn && engVad && engVad.vad){
         try {
           voz = await engVad.vad(blob);
@@ -4287,7 +4294,7 @@ window.Grabadora = null;
         return;
       }
       liveMsg('Cargando modelo… la escucha queda en cola.');
-      try { await loadWhisper(); if (window.WhisperEngine && window.WhisperEngine.asegurarVad) await window.WhisperEngine.asegurarVad(); }
+      try { await loadWhisper(); if (motorLiveEfectivo() !== 'whisper' && window.WhisperEngine && window.WhisperEngine.asegurarVad) await window.WhisperEngine.asegurarVad(); }
       catch(e){ try { console.warn('[Silero] no listo', e); } catch(_){} }
       const okMo = await asegurarMotorLive();
       if (!okMo){
